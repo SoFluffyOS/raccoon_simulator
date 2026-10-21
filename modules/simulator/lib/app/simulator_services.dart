@@ -17,6 +17,7 @@ final class SimulatorServices {
     required this.project,
     required this.viewer,
     required this.controller,
+    required this.chrome,
   });
 
   factory SimulatorServices.create({
@@ -59,6 +60,7 @@ final class SimulatorServices {
       runtime: runtime,
       project: project,
       viewer: ViewerViewModel(),
+      chrome: WindowChrome(toolbarIsTitleBar: host.operatingSystem == 'macos'),
       controller: SimulatorController(
         project: project,
         runtime: runtime,
@@ -75,6 +77,7 @@ final class SimulatorServices {
   final ProjectViewModel project;
   final ViewerViewModel viewer;
   final SimulatorController controller;
+  final WindowChrome chrome;
 
   /// Checks the runtime and sets up what is missing, restores the recent
   /// projects, and applies [options].
@@ -94,6 +97,7 @@ final class SimulatorServices {
     runtime.dispose();
     project.dispose();
     viewer.dispose();
+    chrome.dispose();
     log.dispose();
   }
 }

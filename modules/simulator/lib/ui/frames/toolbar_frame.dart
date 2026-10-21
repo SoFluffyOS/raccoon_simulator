@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:simulator/app/simulator_controller.dart';
 import 'package:simulator/design/design.dart';
 import 'package:simulator/features/features.dart';
+import 'package:simulator/services/services.dart';
 import 'package:simulator/ui/dialogs/dialogs.dart';
 import 'package:simulator/ui/widgets/widgets.dart';
 import 'package:simulator/utils/utils.dart';
@@ -64,6 +65,9 @@ class ToolbarFrame extends StatelessWidget {
     context
       ..select<RuntimeViewModel, bool>((viewModel) => viewModel.isReady)
       ..select<RuntimeViewModel, FlutterSdk?>((viewModel) => viewModel.sdk);
+    final leadingInset = context.select<WindowChrome, double>(
+      (chrome) => chrome.leadingInset,
+    );
     final controller = context.read<SimulatorController>();
     final run = context.read<RunViewModel>();
     final blocker = controller.runBlocker;
@@ -85,7 +89,10 @@ class ToolbarFrame extends StatelessWidget {
     final showRunControls = projectName != null || phase != RunPhase.idle;
     return Container(
       height: Spacing.d36,
-      padding: EdgeInsets.symmetric(horizontal: Spacing.d8),
+      padding: EdgeInsets.only(
+        left: Spacing.d8 + leadingInset,
+        right: Spacing.d8,
+      ),
       decoration: const BoxDecoration(
         color: Palette.surface,
         border: Border(bottom: BorderSide(color: Palette.border)),
