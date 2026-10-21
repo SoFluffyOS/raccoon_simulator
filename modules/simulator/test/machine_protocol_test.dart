@@ -148,4 +148,50 @@ void main() {
       },
     ]);
   });
+
+  test('reads a recorded flutter 3.47.7 session on the raccoon device', () {
+    const recorded = [
+      '[{"event":"daemon.connected","params":{"version":"0.6.1","pid":1584698}}]',
+      '[{"event":"app.start","params":{"appId":"cf88","deviceId":"raccoon","directory":"/work/hello","supportsRestart":true,"launchMode":"run","mode":"debug"}}]',
+      'Launching lib/main.dart on Raccoon in debug mode...',
+      'raccoon_runner: listening on unix:/run/user/1001/raccoon_simulator/raccoon/hello.sock',
+      '[{"event":"app.debugPort","params":{"appId":"cf88","port":44409,"wsUri":"ws://127.0.0.1:44409/pOTYItUGPes=/ws","baseUri":"file:///tmp/helloRGBRNX/hello/"}}]',
+      '[{"event":"app.devTools","params":{"appId":"cf88","uri":"http://127.0.0.1:44409/pOTYItUGPes=/devtools/"}}]',
+      '[{"event":"app.dtd","params":{"appId":"cf88","uri":"ws://127.0.0.1:35949/d_MMLRAuVzA="}}]',
+      '[{"event":"app.progress","params":{"appId":"cf88","id":"0","progressId":"devFS.update","message":"Syncing files to device Raccoon...","finished":false}}]',
+      '[{"event":"app.progress","params":{"appId":"cf88","id":"0","progressId":"devFS.update","finished":true}}]',
+      '[{"event":"app.started","params":{"appId":"cf88"}}]',
+      'Reloaded 0 libraries in 62ms (compile: 6 ms, reload: 0 ms, reassemble: 10 ms).',
+      '[{"id":1,"result":{"code":0,"message":"Reloaded 0 libraries"}}]',
+      'Restarted application in 271ms.',
+      '[{"id":2,"result":{"code":0,"message":""}}]',
+      'Application finished.',
+      '[{"event":"app.stop","params":{"appId":"cf88"}}]',
+      '[{"id":3,"result":true}]',
+    ];
+    final kinds = [
+      for (final line in recorded) MachineProtocol.parse(line).runtimeType,
+    ];
+    expect(kinds, [
+      DaemonConnected,
+      AppStart,
+      PlainOutput,
+      PlainOutput,
+      AppDebugPort,
+      OtherEvent,
+      OtherEvent,
+      AppProgress,
+      AppProgress,
+      AppStarted,
+      PlainOutput,
+      MachineResponse,
+      PlainOutput,
+      MachineResponse,
+      PlainOutput,
+      AppStop,
+      MachineResponse,
+    ]);
+    final reload = MachineProtocol.parse(recorded[11]) as MachineResponse;
+    expect(reload.succeeded, isTrue);
+  });
 }
