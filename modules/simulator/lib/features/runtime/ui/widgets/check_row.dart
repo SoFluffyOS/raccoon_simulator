@@ -4,22 +4,17 @@ import 'package:simulator/features/runtime/models/models.dart';
 import 'package:simulator/ui/widgets/widgets.dart';
 import 'package:sofluffy_ui/sofluffy_ui.dart';
 
-/// One runtime check: status, what was found, and its fix button.
+/// One runtime check: status, what was found, and a button per fix.
 class CheckRow extends StatelessWidget {
-  const CheckRow({
-    super.key,
-    required this.check,
-    this.fixing = false,
-    this.onFix,
-  });
+  const CheckRow({super.key, required this.check, this.fixing, this.onFix});
 
   final RuntimeCheck check;
 
-  /// Whether this check's fix is running.
-  final bool fixing;
+  /// The fix of this check that is running, if any.
+  final FixKind? fixing;
 
-  /// Runs the fix; null while another fix runs.
-  final VoidCallback? onFix;
+  /// Runs a fix; null while another fix runs.
+  final void Function(FixKind fix)? onFix;
 
   @override
   Widget build(BuildContext context) {
@@ -54,16 +49,19 @@ class CheckRow extends StatelessWidget {
               ],
             ),
           ),
-          if (check.fixLabel case final label?) ...[
+          for (final fix in check.fixes) ...[
             Spacing.h8,
             Button(
               variant: ButtonVariant.ghost,
-              label: switch (fixing) {
+              label: switch (fixing == fix) {
                 true => 'Working…',
-                false => label,
+                false => fix.label,
               },
-              enable: !fixing && onFix != null,
-              onPressed: onFix,
+              enable: fixing == null && onFix != null,
+              onPressed: switch (onFix) {
+                null => null,
+                final onFix => () => onFix(fix),
+              },
             ),
           ],
         ],

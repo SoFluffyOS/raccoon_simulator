@@ -4,6 +4,8 @@ import 'package:path/path.dart' as p;
 import 'package:raccoon_runtime/raccoon_runtime.dart';
 import 'package:simulator/features/runtime/models/models.dart';
 import 'package:simulator/features/runtime/services/command_runner.dart';
+import 'package:simulator/features/runtime/services/host_locator.dart';
+import 'package:simulator/features/runtime/services/runner_downloader.dart';
 
 /// A fix that did not work, with what to tell the user.
 final class FixFailed implements Exception {
@@ -15,7 +17,7 @@ final class FixFailed implements Exception {
   String toString() => message;
 }
 
-/// Applies the fix for one [CheckKind]: builds the runner, installs the
+/// Applies one [FixKind]: downloads or builds the runner, installs the
 /// engine, turns custom devices on, or registers the device.
 final class RuntimeFixer {
   RuntimeFixer({
@@ -23,32 +25,48 @@ final class RuntimeFixer {
     this.commands = const CommandRunner(),
     RuntimeStore? store,
     CustomDevicesFile? devices,
+    RunnerDownloader? downloader,
+    PrebuiltRunner? prebuilt,
   }) : store = store ?? RuntimeStore.forHost(host.environment),
-       devices = devices ?? CustomDevicesFile.forHost(host.environment);
+       devices = devices ?? CustomDevicesFile.forHost(host.environment),
+       downloader = downloader ?? RunnerDownloader(),
+       prebuilt = prebuilt ?? HostLocator.prebuiltRunner(host);
 
   final HostInfo host;
   final CommandRunner commands;
   final RuntimeStore store;
   final CustomDevicesFile devices;
+  final RunnerDownloader downloader;
 
+  /// Where Download puts the runner.
+  final PrebuiltRunner prebuilt;
+
+  /// [runner] is where runs find the runner, see `RuntimeDoctor.runner`;
+  /// the device fixes register its helper.
   Future<void> fix(
-    CheckKind kind, {
+    FixKind kind, {
     required FlutterSdk? sdk,
     required CheckoutPaths? checkout,
+    required RunnerPaths? runner,
     required void Function(String line) onLine,
   }) async {
     switch (kind) {
-      case CheckKind.flutter:
+      case FixKind.precache:
         await _precache(_require(sdk, 'a Flutter SDK'), onLine);
-      case CheckKind.runner:
+      case FixKind.download:
+        await _downloadRunner(
+          _require(checkout, 'the runner submodule'),
+          onLine,
+        );
+      case FixKind.build:
         await _buildRunner(
           _require(sdk, 'a Flutter SDK'),
           _require(checkout, 'the runner submodule'),
           onLine,
         );
-      case CheckKind.engine:
+      case FixKind.installEngine:
         await _installEngine(_require(sdk, 'a Flutter SDK'), onLine);
-      case CheckKind.customDevices:
+      case FixKind.enableCustomDevices:
         await _step(
           'flutter config --enable-custom-devices',
           _require(sdk, 'a Flutter SDK').flutter,
@@ -56,8 +74,8 @@ final class RuntimeFixer {
           sdk: sdk,
           onLine: onLine,
         );
-      case CheckKind.device:
-        final paths = _require(checkout, 'the runner submodule');
+      case FixKind.register || FixKind.useThisRunner:
+        final paths = _require(runner, 'a runner');
         devices.upsert(CustomDeviceConfig(deviceHelper: paths.deviceHelper));
         onLine('Registered ${paths.deviceHelper} in ${devices.path}');
     }
@@ -82,6 +100,44 @@ final class RuntimeFixer {
     sdk: sdk,
     onLine: onLine,
   );
+
+  /// The newest release compatible with the checkout's pinned version,
+  /// unpacked into [prebuilt]. Fails without a release for this host or
+  /// without the network; Build is the fallback then.
+  Future<void> _downloadRunner(
+    CheckoutPaths checkout,
+    void Function(String) onLine,
+  ) async {
+    final pinned = RunnerVersion.read(checkout.runnerVersionFile);
+    if (pinned == null) {
+      throw FixFailed(
+        'No version in ${checkout.runnerVersionFile} to match a release',
+      );
+    }
+    onLine(
+      'Looking for a runner release ${pinned.series} for '
+      '${downloader.platform} at ${downloader.releases}',
+    );
+    final release = await _downloading(() => downloader.find(pinned));
+    if (release == null) {
+      throw FixFailed(
+        'No runner release ${pinned.series} for ${downloader.platform} yet; '
+        'Build makes one',
+      );
+    }
+    onLine('Downloading ${release.asset}');
+    await _downloading(() => downloader.install(release, prebuilt));
+    onLine('Unpacked runner ${release.version} in ${prebuilt.directory}');
+  }
+
+  /// [action], with a [DownloadFailed] turned into what the panel shows.
+  static Future<T> _downloading<T>(Future<T> Function() action) async {
+    try {
+      return await action();
+    } on DownloadFailed catch (error) {
+      throw FixFailed('Could not download the runner: ${error.message}');
+    }
+  }
 
   Future<void> _buildRunner(
     FlutterSdk sdk,

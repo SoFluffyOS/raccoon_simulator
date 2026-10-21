@@ -80,6 +80,26 @@ abstract final class HostLocator {
     return null;
   }
 
+  /// The simulator's runtime directory, where a downloaded runner unpacks:
+  /// `$XDG_DATA_HOME/raccoon_simulator/runner`, or
+  /// `~/.local/share/raccoon_simulator/runner`; under `%LOCALAPPDATA%` on
+  /// Windows.
+  static PrebuiltRunner prebuiltRunner(HostInfo host) {
+    final dataHome = switch (host.environment['XDG_DATA_HOME']) {
+      final dir? when dir.isNotEmpty => dir,
+      _ => switch (host.isWindows) {
+        true =>
+          host.environment['LOCALAPPDATA'] ??
+              p.join(host.home, 'AppData', 'Local'),
+        false => p.join(host.home, '.local', 'share'),
+      },
+    };
+    return PrebuiltRunner(
+      p.join(dataHome, 'raccoon_simulator', 'runner'),
+      isWindows: host.isWindows,
+    );
+  }
+
   /// The tool's settings file, which holds `enable-custom-devices`.
   static String flutterSettings(HostInfo host) {
     final configHome = switch (host.environment['XDG_CONFIG_HOME']) {

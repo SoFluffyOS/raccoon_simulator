@@ -6,16 +6,18 @@ import 'package:simulator/features/runtime/models/models.dart';
 import 'package:simulator/features/runtime/services/host_locator.dart';
 
 /// Checks what `flutter run -d raccoon` needs, the way `raccoon_device
-/// doctor` does, and says which fix applies to each gap.
+/// doctor` does, and says which fixes apply to each gap.
 final class RuntimeDoctor {
   RuntimeDoctor({
     required this.host,
     RuntimeStore? store,
     CustomDevicesFile? devices,
     String? flutterSettings,
+    PrebuiltRunner? prebuilt,
   }) : store = store ?? RuntimeStore.forHost(host.environment),
        devices = devices ?? CustomDevicesFile.forHost(host.environment),
-       flutterSettings = flutterSettings ?? HostLocator.flutterSettings(host);
+       flutterSettings = flutterSettings ?? HostLocator.flutterSettings(host),
+       prebuilt = prebuilt ?? HostLocator.prebuiltRunner(host);
 
   static const deviceId = 'raccoon';
 
@@ -26,15 +28,46 @@ final class RuntimeDoctor {
   /// The tool's settings file.
   final String flutterSettings;
 
+  /// Where a downloaded runner lives.
+  final PrebuiltRunner prebuilt;
+
+  /// Where runs find the runner: the checkout's build when there is one,
+  /// else the downloaded runner when it is compatible with the checkout's
+  /// pinned version, else the checkout, which Build or Download fills. Null
+  /// without a checkout.
+  RunnerPaths? runner(CheckoutPaths? checkout) {
+    if (checkout == null) return null;
+    if (File(checkout.runnerBinary).existsSync()) return checkout.runner;
+    if (compatibleDownload(checkout) != null) return prebuilt.paths;
+    return checkout.runner;
+  }
+
+  /// The downloaded runner's version when it is installed and compatible
+  /// with [checkout]'s pinned version, else null.
+  RunnerVersion? compatibleDownload(CheckoutPaths checkout) {
+    final installed = downloaded();
+    final pinned = RunnerVersion.read(checkout.runnerVersionFile);
+    if (installed == null || pinned == null) return null;
+    if (!installed.isCompatibleWith(pinned)) return null;
+    return installed;
+  }
+
+  /// The downloaded runner's version, or null when none is installed.
+  RunnerVersion? downloaded() {
+    if (!File(prebuilt.binary).existsSync()) return null;
+    return RunnerVersion.read(prebuilt.versionFile);
+  }
+
   List<RuntimeCheck> check({
     required FlutterSdk? sdk,
     required CheckoutPaths? checkout,
+    required RunnerPaths? runner,
   }) => [
     _flutter(sdk),
-    _runner(checkout),
+    _runner(checkout, runner),
     _engine(sdk),
     _customDevices(),
-    _device(checkout),
+    _device(checkout, runner),
   ];
 
   RuntimeCheck _flutter(FlutterSdk? sdk) {
@@ -51,7 +84,7 @@ final class RuntimeDoctor {
         kind: CheckKind.flutter,
         status: CheckStatus.missing,
         detail: '${sdk.root}: no ICU data for ${store.platform} yet',
-        fixLabel: 'Precache',
+        fixes: const [FixKind.precache],
       );
     }
     return RuntimeCheck(
@@ -61,8 +94,8 @@ final class RuntimeDoctor {
     );
   }
 
-  RuntimeCheck _runner(CheckoutPaths? checkout) {
-    if (checkout == null) {
+  RuntimeCheck _runner(CheckoutPaths? checkout, RunnerPaths? runner) {
+    if (checkout == null || runner == null) {
       return const RuntimeCheck(
         kind: CheckKind.runner,
         status: CheckStatus.missing,
@@ -71,25 +104,40 @@ final class RuntimeDoctor {
             'set ${HostLocator.rootVariable}.',
       );
     }
-    if (File(checkout.runnerBinary).existsSync()) {
+    if (File(runner.binary).existsSync()) {
       return RuntimeCheck(
         kind: CheckKind.runner,
         status: CheckStatus.ok,
-        detail: checkout.runnerBinary,
+        detail: switch (runner.binary == prebuilt.binary) {
+          true => 'Downloaded ${downloaded() ?? ''}: ${runner.binary}',
+          false => runner.binary,
+        },
       );
     }
+    final pinned = RunnerVersion.read(checkout.runnerVersionFile);
     final missingTools = [
       for (final tool in const ['cmake', 'ninja'])
         if (HostLocator.findOnPath(tool, host) == null) tool,
     ];
+    final build = switch (missingTools) {
+      [] => 'Build takes a few minutes the first time',
+      final tools => 'Build needs ${tools.join(' and ')} on PATH',
+    };
+    final stale = switch (downloaded()) {
+      final version? when pinned != null =>
+        'Downloaded $version is not ${pinned.series}. ',
+      _ => '',
+    };
     return RuntimeCheck(
       kind: CheckKind.runner,
       status: CheckStatus.missing,
-      detail: switch (missingTools) {
-        [] => 'Not built yet (CMake and Ninja, a few minutes the first time)',
-        final tools => 'Not built yet; needs ${tools.join(' and ')} on PATH',
+      detail: switch (pinned) {
+        null => 'Not built yet. $build',
+        final pinned =>
+          '${stale}Not built yet. Download fetches release ${pinned.series}; '
+              '$build',
       },
-      fixLabel: 'Build',
+      fixes: [if (pinned != null) FixKind.download, FixKind.build],
     );
   }
 
@@ -113,7 +161,7 @@ final class RuntimeDoctor {
       kind: CheckKind.engine,
       status: CheckStatus.missing,
       detail: 'Engine ${_short(revision)} for ${store.platform} not installed',
-      fixLabel: 'Install',
+      fixes: const [FixKind.installEngine],
     );
   }
 
@@ -129,24 +177,22 @@ final class RuntimeDoctor {
       kind: CheckKind.customDevices,
       status: CheckStatus.missing,
       detail: 'The tool ignores custom devices until this is on',
-      fixLabel: 'Enable',
+      fixes: [FixKind.enableCustomDevices],
     );
   }
 
-  RuntimeCheck _device(CheckoutPaths? checkout) {
+  RuntimeCheck _device(CheckoutPaths? checkout, RunnerPaths? runner) {
     final helper = registeredHelper();
+    final register = [if (runner != null) FixKind.register];
     if (helper == null) {
       return RuntimeCheck(
         kind: CheckKind.device,
         status: CheckStatus.missing,
         detail: 'No "$deviceId" entry in ${devices.path}',
-        fixLabel: switch (checkout) {
-          null => null,
-          _ => 'Register',
-        },
+        fixes: register,
       );
     }
-    if (checkout != null && helper == checkout.deviceHelper) {
+    if (runner != null && helper == runner.deviceHelper) {
       return RuntimeCheck(
         kind: CheckKind.device,
         status: CheckStatus.ok,
@@ -158,22 +204,28 @@ final class RuntimeDoctor {
         kind: CheckKind.device,
         status: CheckStatus.missing,
         detail: 'Points at a missing helper: $helper',
-        fixLabel: switch (checkout) {
-          null => null,
-          _ => 'Register',
-        },
+        fixes: register,
+      );
+    }
+    // This checkout's other helper: the built runner's while the download
+    // is in use, or the other way round. Editor runs go through the helper,
+    // so it must be the one whose runner runs are using.
+    if (runner != null &&
+        (helper == checkout?.deviceHelper || helper == prebuilt.deviceHelper)) {
+      return RuntimeCheck(
+        kind: CheckKind.device,
+        status: CheckStatus.missing,
+        detail: 'Points at $helper, not at the runner in use: ${runner.binary}',
+        fixes: register,
       );
     }
     return RuntimeCheck(
       kind: CheckKind.device,
       status: CheckStatus.warning,
       detail:
-          'Uses another checkout\'s helper: $helper. Runs still use this '
-          'checkout\'s runner.',
-      fixLabel: switch (checkout) {
-        null => null,
-        _ => 'Use this checkout',
-      },
+          'Uses another checkout\'s helper: $helper. Runs from here still '
+          'use ${runner?.binary ?? 'this checkout\'s runner'}.',
+      fixes: [if (runner != null) FixKind.useThisRunner],
     );
   }
 

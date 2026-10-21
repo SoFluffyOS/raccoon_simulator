@@ -8,6 +8,8 @@ import 'package:raccoon_runtime/raccoon_runtime.dart';
 import 'package:simulator/features/runtime/runtime.dart';
 import 'package:simulator/services/services.dart';
 
+import 'support/fake_release_server.dart';
+
 /// Plays the setup commands: `flutter precache` writes the ICU data,
 /// `engine_dir.sh` prints a folder, `ninja` makes the runner binary, and
 /// `flutter config` turns custom devices on. [failing] exits with 1.
@@ -39,6 +41,8 @@ void main() {
   late HostInfo host;
   late FlutterSdk sdk;
   late CheckoutPaths checkout;
+  late PrebuiltRunner prebuilt;
+  late FakeReleaseServer releases;
   late RuntimeStore store;
   late CustomDevicesFile devices;
   late String settings;
@@ -51,7 +55,7 @@ void main() {
     ..parent.createSync(recursive: true)
     ..writeAsStringSync(contents);
 
-  setUp(() {
+  setUp(() async {
     lines.clear();
     temp = Directory.systemTemp.createTempSync('simulator_setup');
     final sdkRoot = p.join(temp.path, 'flutter');
@@ -69,6 +73,9 @@ void main() {
     sdk = FlutterSdk(root: sdkRoot, revision: revision);
     checkout = CheckoutPaths(p.join(temp.path, 'repo'));
     touch(checkout.deviceHelper);
+    touch(checkout.runnerVersionFile, '0.3.0-pre.1\n');
+    prebuilt = PrebuiltRunner(p.join(temp.path, 'runtime', 'runner'));
+    releases = await FakeReleaseServer.start();
     host = HostInfo(
       operatingSystem: 'linux',
       environment: {'HOME': temp.path, 'PATH': ''},
@@ -87,7 +94,10 @@ void main() {
     settings = p.join(temp.path, 'settings');
   });
 
-  tearDown(() => temp.deleteSync(recursive: true));
+  tearDown(() async {
+    await releases.close();
+    temp.deleteSync(recursive: true);
+  });
 
   FakeCommands commands({String? failing}) => FakeCommands(
     failing: failing,
@@ -118,12 +128,18 @@ void main() {
         store: store,
         devices: devices,
         flutterSettings: settings,
+        prebuilt: prebuilt,
       ),
       fixer: RuntimeFixer(
         host: host,
         commands: commands,
         store: store,
         devices: devices,
+        downloader: RunnerDownloader(
+          releases: releases.releasesUri,
+          platform: 'linux-x64',
+        ),
+        prebuilt: prebuilt,
       ),
       onLine: lines.add,
       locateSdk: (_) => switch (withSdk) {
@@ -136,7 +152,23 @@ void main() {
     return viewModel..refresh();
   }
 
-  test('sets up a fresh machine until Raccoon is a device', () async {
+  const buildCommands = [
+    'protoc.sh',
+    'engine_dir.sh',
+    'cmake -S . -B build -G Ninja -DRACCOON_ENGINE_DIR=ENGINES/deb287481e0123456789',
+    'ninja -C build',
+  ];
+  List<String> build() => [
+    for (final command in buildCommands)
+      command.replaceFirst('ENGINES', p.join(temp.path, 'engines')),
+  ];
+
+  test('sets up a fresh machine with the downloaded runner', () async {
+    releases.addRelease(
+      'v0.3.1',
+      platforms: ['linux-x64', 'macos-arm64'],
+      archive: fakeRunnerArchive(version: '0.3.1'),
+    );
     final fake = commands();
     final runtime = viewModel(fake);
     expect(runtime.isReady, isFalse);
@@ -150,15 +182,51 @@ void main() {
     expect(runtime.isReady, isTrue);
     expect(fake.ran, [
       'flutter precache --linux',
-      'protoc.sh',
-      'engine_dir.sh',
-      'cmake -S . -B build -G Ninja '
-          '-DRACCOON_ENGINE_DIR=${p.join(temp.path, 'engines', revision)}',
-      'ninja -C build',
       'flutter config --enable-custom-devices',
     ]);
+    expect(runtime.runner, prebuilt.paths);
+    expect(runtime.runEnvironment['RACCOON_RUNNER'], prebuilt.binary);
+    expect(RunnerVersion.read(prebuilt.versionFile)?.text, '0.3.1');
     expect(devices.ids(), ['raccoon']);
+    expect(
+      RuntimeDoctor(host: host, devices: devices).registeredHelper(),
+      prebuilt.deviceHelper,
+    );
     expect(store.installed(revision), isNotNull);
+    expect(lines, contains('Download: done'));
+  });
+
+  test('builds the runner when no release fits', () async {
+    releases.addRelease('v0.2.0', platforms: ['linux-x64']);
+    final fake = commands();
+    final runtime = viewModel(fake);
+
+    await runtime.setUp();
+
+    expect(runtime.fixError, isNull);
+    expect(runtime.isReady, isTrue);
+    expect(fake.ran, [
+      'flutter precache --linux',
+      ...build(),
+      'flutter config --enable-custom-devices',
+    ]);
+    expect(runtime.runner, checkout.runner);
+    expect(File(prebuilt.binary).existsSync(), isFalse);
+    expect(lines, contains(contains('No runner release 0.3.x for linux-x64')));
+    expect(lines, contains('Build: done'));
+  });
+
+  test('builds the runner when the releases cannot be fetched', () async {
+    final fake = commands();
+    final runtime = viewModel(fake);
+    await releases.close();
+
+    await runtime.setUp();
+
+    expect(runtime.fixError, isNull);
+    expect(runtime.isReady, isTrue);
+    expect(fake.ran, contains('ninja -C build'));
+    expect(lines, contains(contains('Could not download the runner')));
   });
 
   test('stops at the first fix that fails', () async {
@@ -201,5 +269,23 @@ void main() {
     expect(fake.ran, isEmpty);
     expect(runtime.isReady, isTrue);
     expect(File(devices.path).readAsStringSync(), before);
+  });
+
+  test('one Download replaces a downloaded runner of another series', () async {
+    touch(prebuilt.binary);
+    touch(prebuilt.versionFile, '0.2.0\n');
+    releases.addRelease(
+      'v0.3.0',
+      platforms: ['linux-x64'],
+      archive: fakeRunnerArchive(version: '0.3.0'),
+    );
+    final runtime = viewModel(commands());
+    expect(runtime.checks[1].detail, startsWith('Downloaded 0.2.0 is not'));
+
+    expect(await runtime.fix(FixKind.download), isTrue);
+
+    expect(RunnerVersion.read(prebuilt.versionFile)?.text, '0.3.0');
+    expect(runtime.runner, prebuilt.paths);
+    expect(runtime.checks[1].status, CheckStatus.ok);
   });
 }

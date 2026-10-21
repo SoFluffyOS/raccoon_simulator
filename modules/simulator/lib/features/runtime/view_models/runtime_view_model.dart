@@ -37,8 +37,9 @@ final class RuntimeViewModel extends ChangeNotifier {
 
   FlutterSdk? _sdk;
   CheckoutPaths? _checkout;
+  RunnerPaths? _runner;
   List<RuntimeCheck> _checks = const [];
-  CheckKind? _fixing;
+  FixKind? _fixing;
   String? _fixError;
   var _settingUp = false;
   var _privateSockets = true;
@@ -49,11 +50,14 @@ final class RuntimeViewModel extends ChangeNotifier {
 
   CheckoutPaths? get checkout => _checkout;
 
+  /// Where runs find the runner, see [RuntimeDoctor.runner].
+  RunnerPaths? get runner => _runner;
+
   /// The same list until the next [refresh].
   List<RuntimeCheck> get checks => _checks;
 
-  /// The check whose fix is running.
-  CheckKind? get fixing => _fixing;
+  /// The fix that is running.
+  FixKind? get fixing => _fixing;
 
   String? get fixError => _fixError;
 
@@ -72,11 +76,11 @@ final class RuntimeViewModel extends ChangeNotifier {
 
   RunnerSockets get sockets => _sockets;
 
-  /// Variables for `flutter run`: the SDK first on the PATH, this checkout's
-  /// runner, and the socket directory.
+  /// Variables for `flutter run`: the SDK first on the PATH, the runner in
+  /// use, and the socket directory.
   Map<String, String> get runEnvironment => {
     ..._fixer.environmentFor(_sdk),
-    if (_checkout case final checkout?) 'RACCOON_RUNNER': checkout.runnerBinary,
+    if (_runner case final runner?) 'RACCOON_RUNNER': runner.binary,
     ..._sockets.environment,
   };
 
@@ -92,21 +96,28 @@ final class RuntimeViewModel extends ChangeNotifier {
   void refresh() {
     _sdk = _locateSdk(host);
     _checkout = _locateCheckout(host);
+    _runner = _doctor.runner(_checkout);
     _checks = List.unmodifiable(
-      _doctor.check(sdk: _sdk, checkout: _checkout),
+      _doctor.check(sdk: _sdk, checkout: _checkout, runner: _runner),
     );
     _notify();
   }
 
-  /// Applies [kind]'s fix and checks again. True when the fix worked.
-  Future<bool> fix(CheckKind kind) async {
+  /// Applies [kind] and checks again. True when the fix worked.
+  Future<bool> fix(FixKind kind) async {
     if (_fixing != null) return false;
     _fixing = kind;
     _fixError = null;
     _notify();
     var worked = true;
     try {
-      await _fixer.fix(kind, sdk: _sdk, checkout: _checkout, onLine: _onLine);
+      await _fixer.fix(
+        kind,
+        sdk: _sdk,
+        checkout: _checkout,
+        runner: _runner,
+        onLine: _onLine,
+      );
       _onLine('${kind.label}: done');
     } on Object catch (error) {
       worked = false;
@@ -119,10 +130,12 @@ final class RuntimeViewModel extends ChangeNotifier {
     return worked;
   }
 
-  /// Applies every missing fix in order, so a fresh machine gets the runner,
-  /// the engine, custom devices and the "raccoon" device, and `flutter
-  /// devices` lists Raccoon. Stops at a gap with no fix or a fix that fails.
-  /// A warning stays: a device another checkout registered still runs.
+  /// Applies every missing check's fixes in order, so a fresh machine gets
+  /// the runner (downloaded, or built when no release fits or the network
+  /// is down), the engine, custom devices and the "raccoon" device, and
+  /// `flutter devices` lists Raccoon. Stops at a gap with no fix or whose
+  /// fixes all fail. A warning stays: a device another checkout registered
+  /// still runs.
   Future<void> setUp() async {
     if (_settingUp || _fixing != null) return;
     _settingUp = true;
@@ -130,11 +143,18 @@ final class RuntimeViewModel extends ChangeNotifier {
     for (final kind in CheckKind.values) {
       final check = _checkOf(kind);
       if (check == null || check.passes) continue;
-      if (check.fixLabel == null) break;
-      if (!await fix(kind)) break;
+      if (!await _fixAny(check.fixes)) break;
     }
     _settingUp = false;
     _notify();
+  }
+
+  /// Tries [fixes] in order until one works.
+  Future<bool> _fixAny(List<FixKind> fixes) async {
+    for (final kind in fixes) {
+      if (await fix(kind)) return true;
+    }
+    return false;
   }
 
   RuntimeCheck? _checkOf(CheckKind kind) {

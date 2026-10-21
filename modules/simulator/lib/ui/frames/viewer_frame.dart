@@ -57,7 +57,7 @@ class ViewerFrame extends StatelessWidget {
     final setup = context.select<RuntimeViewModel, _Setup>(
       (viewModel) => (
         running: viewModel.settingUp,
-        step: viewModel.fixing,
+        step: viewModel.fixing?.check,
         needed: viewModel.needsSetup,
         error: viewModel.fixError,
       ),

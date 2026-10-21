@@ -1,6 +1,6 @@
 // Runs the runtime panel's real checks and fixes against this checkout and
-// machine. Skipped unless RACCOON_E2E=1, as it builds the runner (minutes the
-// first time) and downloads what is missing:
+// machine. Skipped unless RACCOON_E2E=1, as it downloads or builds the
+// runner (minutes the first time) and downloads what else is missing:
 //
 //   RACCOON_E2E=1 flutter test test/e2e/runtime_setup_e2e_test.dart
 //
@@ -25,20 +25,42 @@ void main() {
       expect(sdk, isNotNull, reason: 'no Flutter SDK');
       expect(checkout, isNotNull, reason: 'no checkout');
 
-      for (final check in doctor.check(sdk: sdk, checkout: checkout)) {
+      final checks = doctor.check(
+        sdk: sdk,
+        checkout: checkout,
+        runner: doctor.runner(checkout),
+      );
+      for (final check in checks) {
         stdout.writeln(
           '${check.kind.label}: ${check.status.name} ${check.detail}',
         );
-        if (check.passes || check.fixLabel == null) continue;
-        await fixer.fix(
-          check.kind,
-          sdk: sdk,
-          checkout: checkout,
-          onLine: (line) => stdout.writeln('  $line'),
-        );
+        if (check.passes || check.fixes.isEmpty) continue;
+        // The fixes in order until one works, the way setup goes: Download
+        // first for the runner, Build when no release fits.
+        var fixed = false;
+        for (final fix in check.fixes) {
+          try {
+            await fixer.fix(
+              fix,
+              sdk: sdk,
+              checkout: checkout,
+              runner: doctor.runner(checkout),
+              onLine: (line) => stdout.writeln('  $line'),
+            );
+            fixed = true;
+            break;
+          } on FixFailed catch (error) {
+            stdout.writeln('  ${fix.label}: $error');
+          }
+        }
+        expect(fixed, isTrue, reason: 'no fix of ${check.kind.label} worked');
       }
 
-      final after = doctor.check(sdk: sdk, checkout: checkout);
+      final after = doctor.check(
+        sdk: sdk,
+        checkout: checkout,
+        runner: doctor.runner(checkout),
+      );
       for (final check in after) {
         stdout.writeln(
           '${check.kind.label}: ${check.status.name} ${check.detail}',

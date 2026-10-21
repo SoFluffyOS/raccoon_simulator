@@ -18,7 +18,7 @@ class RuntimeSettingsFrame extends StatelessWidget {
     final checks = context.select<RuntimeViewModel, List<RuntimeCheck>>(
       (viewModel) => viewModel.checks,
     );
-    final fixing = context.select<RuntimeViewModel, CheckKind?>(
+    final fixing = context.select<RuntimeViewModel, FixKind?>(
       (viewModel) => viewModel.fixing,
     );
     final fixError = context.select<RuntimeViewModel, String?>(
@@ -72,18 +72,21 @@ class RuntimeSettingsFrame extends StatelessWidget {
                   'minutes.',
             (false, true) => 'Raccoon is listed in flutter devices.',
             (false, false) =>
-              'Set up adds Raccoon to flutter devices: it builds the '
-                  'runner and registers the custom device.',
+              'Set up adds Raccoon to flutter devices: it downloads the '
+                  'runner (or builds it) and registers the custom device.',
           }, style: caption),
           Spacing.v8,
           for (final check in checks)
             CheckRow(
               key: ValueKey(check.kind),
               check: check,
-              fixing: fixing == check.kind,
+              fixing: switch (fixing) {
+                final fix? when fix.check == check.kind => fix,
+                _ => null,
+              },
               onFix: switch (busy) {
                 true => null,
-                false => () => viewModel.fix(check.kind),
+                false => viewModel.fix,
               },
             ),
           if (fixError case final error?) ...[
