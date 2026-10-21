@@ -1,7 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:simulator/simulator.dart';
 
-/// `raccoon_simulator [project folder] [--run]`
+/// `raccoon_simulator [project folder] [--run] [--no-setup]`
 void main(List<String> arguments) {
   WidgetsFlutterBinding.ensureInitialized();
   final services = SimulatorServices.create(

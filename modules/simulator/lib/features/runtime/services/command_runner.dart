@@ -3,7 +3,8 @@ import 'dart:convert';
 import 'dart:io';
 
 /// Runs a setup command and hands each line of its output to a callback.
-final class CommandRunner {
+/// Not final, so tests can stand in for it.
+class CommandRunner {
   const CommandRunner();
 
   /// Runs [executable] and returns its exit code and stdout lines.

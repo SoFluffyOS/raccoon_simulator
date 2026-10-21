@@ -7,8 +7,8 @@ import 'package:simulator/features/runtime/ui/widgets/widgets.dart';
 import 'package:simulator/features/runtime/view_models/view_models.dart';
 import 'package:simulator/ui/widgets/widgets.dart';
 
-/// The sidebar's runtime block: each check with its fix, and where run
-/// sockets go.
+/// The sidebar's runtime block: setup, each check with its fix, and where
+/// run sockets go.
 class RuntimeFrame extends StatelessWidget {
   const RuntimeFrame({super.key});
 
@@ -23,6 +23,12 @@ class RuntimeFrame extends StatelessWidget {
     final fixError = context.select<RuntimeViewModel, String?>(
       (viewModel) => viewModel.fixError,
     );
+    final settingUp = context.select<RuntimeViewModel, bool>(
+      (viewModel) => viewModel.settingUp,
+    );
+    final ready = context.select<RuntimeViewModel, bool>(
+      (viewModel) => viewModel.isReady,
+    );
     final private = context.select<RuntimeViewModel, bool>(
       (viewModel) => viewModel.privateSockets,
     );
@@ -33,28 +39,53 @@ class RuntimeFrame extends StatelessWidget {
       (viewModel) => viewModel.isActive,
     );
     final viewModel = context.read<RuntimeViewModel>();
+    final busy = settingUp || fixing != null;
     return PanelSection(
       title: 'Runtime',
       actions: [
+        if (!ready || settingUp)
+          ToolButton(
+            label: switch (settingUp) {
+              true => 'Setting up…',
+              false => 'Set up',
+            },
+            tone: ButtonTone.primary,
+            onTap: switch (busy) {
+              true => null,
+              false => viewModel.setUp,
+            },
+          ),
         ToolButton(
           label: 'Re-check',
-          onTap: switch (fixing) {
-            null => viewModel.refresh,
-            _ => null,
+          onTap: switch (busy) {
+            true => null,
+            false => viewModel.refresh,
           },
         ),
       ],
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          Padding(
+            padding: const EdgeInsets.only(bottom: Spacing.d8),
+            child: Text(switch ((settingUp, ready)) {
+              (true, _) =>
+                'Setting up Raccoon. The first runner build takes a few '
+                    'minutes; the log shows its progress.',
+              (false, true) => 'Raccoon is listed in flutter devices.',
+              (false, false) =>
+                'Set up adds Raccoon to flutter devices: it builds the '
+                    'runner and registers the custom device.',
+            }, style: Typography.caption),
+          ),
           for (final check in checks)
             CheckRow(
               key: ValueKey(check.kind),
               check: check,
               fixing: fixing == check.kind,
-              onFix: switch (fixing) {
-                null => () => viewModel.fix(check.kind),
-                _ => null,
+              onFix: switch (busy) {
+                true => null,
+                false => () => viewModel.fix(check.kind),
               },
             ),
           if (fixError case final error?)

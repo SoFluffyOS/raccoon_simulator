@@ -38,6 +38,8 @@ void main() {
     expect(find.text('No project'), findsOneWidget);
     expect(find.text('Run'), findsOneWidget);
     expect(services.controller.runBlocker, isNotNull);
+    expect(find.text('Set up'), findsOneWidget);
+    expect(services.runtime.settingUp, isFalse, reason: 'no SDK to set up');
     for (final kind in CheckKind.values) {
       expect(find.text(kind.label), findsOneWidget);
     }

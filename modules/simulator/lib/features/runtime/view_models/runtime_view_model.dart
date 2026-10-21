@@ -40,6 +40,7 @@ final class RuntimeViewModel extends ChangeNotifier {
   List<RuntimeCheck> _checks = const [];
   CheckKind? _fixing;
   String? _fixError;
+  var _settingUp = false;
   var _privateSockets = true;
   late RunnerSockets _sockets = _socketsFor(_privateSockets);
   var _disposed = false;
@@ -55,6 +56,9 @@ final class RuntimeViewModel extends ChangeNotifier {
   CheckKind? get fixing => _fixing;
 
   String? get fixError => _fixError;
+
+  /// Whether [setUp] is working through the fixes.
+  bool get settingUp => _settingUp;
 
   /// Whether every check passes, so a run can start.
   bool get isReady =>
@@ -90,21 +94,50 @@ final class RuntimeViewModel extends ChangeNotifier {
     _notify();
   }
 
-  Future<void> fix(CheckKind kind) async {
-    if (_fixing != null) return;
+  /// Applies [kind]'s fix and checks again. True when the fix worked.
+  Future<bool> fix(CheckKind kind) async {
+    if (_fixing != null) return false;
     _fixing = kind;
     _fixError = null;
     _notify();
+    var worked = true;
     try {
       await _fixer.fix(kind, sdk: _sdk, checkout: _checkout, onLine: _onLine);
       _onLine('${kind.label}: done');
     } on Object catch (error) {
+      worked = false;
       _fixError = '${kind.label}: $error';
       _onLine(_fixError ?? '');
     }
     _fixing = null;
-    if (_disposed) return;
+    if (_disposed) return false;
     refresh();
+    return worked;
+  }
+
+  /// Applies every missing fix in order, so a fresh machine gets the runner,
+  /// the engine, custom devices and the "raccoon" device, and `flutter
+  /// devices` lists Raccoon. Stops at a gap with no fix or a fix that fails.
+  /// A warning stays: a device another checkout registered still runs.
+  Future<void> setUp() async {
+    if (_settingUp || _fixing != null) return;
+    _settingUp = true;
+    _notify();
+    for (final kind in CheckKind.values) {
+      final check = _checkOf(kind);
+      if (check == null || check.passes) continue;
+      if (check.fixLabel == null) break;
+      if (!await fix(kind)) break;
+    }
+    _settingUp = false;
+    _notify();
+  }
+
+  RuntimeCheck? _checkOf(CheckKind kind) {
+    for (final check in _checks) {
+      if (check.kind == kind) return check;
+    }
+    return null;
   }
 
   Future<void> setPrivateSockets(bool value) async {

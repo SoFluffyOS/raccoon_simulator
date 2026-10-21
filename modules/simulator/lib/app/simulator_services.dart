@@ -67,10 +67,11 @@ final class SimulatorServices {
   final ViewerViewModel viewer;
   final SimulatorController controller;
 
-  /// Checks the runtime, restores the recent projects, and applies
-  /// [options].
+  /// Checks the runtime and sets up what is missing, restores the recent
+  /// projects, and applies [options].
   Future<void> init(SimulatorOptions options) async {
     await runtime.init();
+    if (options.setUp) unawaited(runtime.setUp());
     await project.init(initialDirectory: options.project);
     if (options.run) unawaited(controller.startWhenReady());
   }
