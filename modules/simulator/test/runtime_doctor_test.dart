@@ -162,9 +162,9 @@ void main() {
 
   test('the fixer puts the SDK first on the PATH', () {
     final fixer = RuntimeFixer(
-      host: HostInfo(
+      host: const HostInfo(
         operatingSystem: 'linux',
-        environment: const {'PATH': '/usr/bin'},
+        environment: {'PATH': '/usr/bin'},
         temporaryDirectory: '/tmp',
         workingDirectory: '/',
         executable: '/x',
