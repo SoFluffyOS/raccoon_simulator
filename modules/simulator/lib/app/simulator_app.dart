@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:ui';
 
 import 'package:flutter/widgets.dart';
@@ -27,6 +28,7 @@ class SimulatorApp extends StatefulWidget {
 
 class _SimulatorAppState extends State<SimulatorApp> {
   late final AppLifecycleListener _lifecycle;
+  final _signals = <StreamSubscription<ProcessSignal>>[];
 
   SimulatorServices get _services => widget.services;
 
@@ -34,7 +36,22 @@ class _SimulatorAppState extends State<SimulatorApp> {
   void initState() {
     super.initState();
     _lifecycle = AppLifecycleListener(onExitRequested: _onExitRequested);
+    _watchSignals();
     unawaited(_services.init(widget.options));
+  }
+
+  /// SIGTERM and SIGINT end the process without an exit request, which
+  /// would leave the tool and the runner running; stop them first.
+  void _watchSignals() {
+    if (Platform.isWindows) return;
+    for (final signal in [ProcessSignal.sigterm, ProcessSignal.sigint]) {
+      _signals.add(signal.watch().listen((_) => unawaited(_exitOnSignal())));
+    }
+  }
+
+  Future<void> _exitOnSignal() async {
+    await _services.controller.stop();
+    exit(0);
   }
 
   /// Stops a running app before the window closes, so neither the tool nor
@@ -46,6 +63,9 @@ class _SimulatorAppState extends State<SimulatorApp> {
 
   @override
   void dispose() {
+    for (final signal in _signals) {
+      unawaited(signal.cancel());
+    }
     _lifecycle.dispose();
     _services.dispose();
     super.dispose();
