@@ -9,6 +9,12 @@ Open Raccoon Simulator, and Raccoon shows up in `flutter devices`. Pick it in VS
 > [!WARNING]
 > **Alpha.** Raccoon Simulator is in rapid development for [Lumide](https://lumide.dev). Expect changes.
 
+## Demo
+
+[![Flutter Wonderous running inside Lumide on Raccoon: edit a color, save, and the app hot reloads in its pane](docs/media/raccoon-wonderous-demo.gif)](docs/media/raccoon-wonderous-demo.mp4)
+
+Flutter Wonderous running inside [Lumide](https://lumide.dev) on Raccoon: pick Raccoon, press Run, click through the app, edit a color, save, and it hot reloads. [Watch the full demo](docs/media/raccoon-wonderous-demo.mp4) (45 s).
+
 ## Highlights
 
 - **Your editor, your workflow**: run, hot reload, hot restart and debug from your editor. The simulator just shows the app.
@@ -16,6 +22,26 @@ Open Raccoon Simulator, and Raccoon shows up in `flutter devices`. Pick it in VS
 - **A simulator window**: a compact toolbar over your app. Everything else lives in Settings.
 - **Device sizes**: Fit, Phone, Tablet and Desktop presets that scale down to fit.
 - **macOS and Linux**.
+
+## Benchmarks
+
+Time to first frame of [Flutter Wonderous](https://github.com/gskinnerTeam/flutter-wonderous-app), from `flutter run` to the first rasterized frame. Medians of repeated runs.
+
+| Target | First build, downloads included | Clean build | Warm run |
+|---|---|---|---|
+| Android emulator | 308 s | 20.1 s | 5.5 s |
+| Chrome | | 25.8 s | 24.8 s |
+| Linux desktop | | 13.8 s | 4.5 s |
+| **Raccoon on Linux** | **15.5 s** | **12.0 s** | **3.5 s** |
+| macOS desktop | | 46.4 s | 17.7 s |
+| **Raccoon on macOS** | | **15.0 s** | **7.5 s** |
+
+- **7× faster than Chrome** on a warm run, **3× faster than a macOS build** from clean, and a **first run in 15 s instead of 5 minutes** against Android.
+- Linux: AMD Ryzen 9 7945HX, Flutter 3.47.7; Android is an API 35 x86_64 emulator with KVM. macOS: Apple M1 Pro, Flutter 3.47.5. Wonderous at `747b945` with a one-line first-frame probe; for Android its Gradle, Android Gradle plugin and Kotlin versions were raised to Flutter 3.47's minimums.
+- **Clean** runs `flutter clean` first. **Warm** doesn't. **First build** starts from an empty Gradle home for Android, so Gradle and every dependency download, and from an empty engine cache for Raccoon, so its 15 MB engine downloads; it depends on the network.
+- Reproduce with `native/raccoon_runner/tool/bench/`: `wonderous.sh` prepares the project, `first_frame.py` compares your desktop device with Raccoon (`--devices` for others, `--warm` to skip `flutter clean`).
+
+Raccoon speeds up the inner loop: write, save, see. It doesn't replace testing on a real device or in a browser.
 
 ## Quick Start
 
