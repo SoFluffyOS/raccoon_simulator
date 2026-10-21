@@ -75,7 +75,10 @@ final class SimulatorServices {
     if (options.run) unawaited(controller.startWhenReady());
   }
 
+  /// Shuts the run's runner down before killing the tool, which would
+  /// leave the runner behind.
   void dispose() {
+    if (run.isActive) controller.shutDownRunner(run.appName);
     run.dispose();
     sessions.dispose();
     runtime.dispose();

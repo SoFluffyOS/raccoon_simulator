@@ -31,6 +31,7 @@ final class SimulatorController {
     final chosen = project.project;
     final sdk = runtime.sdk;
     if (runBlocker != null || chosen == null || sdk == null) return;
+    sessions.expectFresh(chosen.appName, since: DateTime.now());
     await run.run(
       directory: chosen.directory,
       appName: chosen.appName,
@@ -39,10 +40,16 @@ final class SimulatorController {
     );
   }
 
-  /// Stops the run, then asks a runner the tool left behind to shut down.
+  /// Stops the run, then asks a runner the tool left behind to shut down:
+  /// the tool does not stop its runner when it is killed.
   Future<void> stop() async {
     final name = run.appName;
     await run.stop();
+    shutDownRunner(name);
+  }
+
+  /// Asks [name]'s runner to exit, if a session to it is open.
+  void shutDownRunner(String? name) {
     if (name == null) return;
     if (sessions.session(name) case final session?) session.client.shutdown();
   }
