@@ -8,46 +8,52 @@ import 'package:simulator/ui/frames/frames.dart';
 class SimulatorPage extends StatelessWidget {
   const SimulatorPage({super.key});
 
+  /// Wraps the whole window, for screenshots.
+  static const windowKey = ValueKey('simulator-window');
+
   @override
   Widget build(BuildContext context) {
-    return const ColoredBox(
-      color: Palette.background,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          ToolbarFrame(),
-          Expanded(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                DecoratedBox(
-                  decoration: BoxDecoration(
-                    border: Border(right: BorderSide(color: Palette.border)),
-                  ),
-                  child: SizedBox(
-                    width: Spacing.sidebarWidth,
-                    child: SingleChildScrollView(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [ProjectFrame(), RuntimeFrame()],
+    return const RepaintBoundary(
+      key: windowKey,
+      child: ColoredBox(
+        color: Palette.background,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ToolbarFrame(),
+            Expanded(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      border: Border(right: BorderSide(color: Palette.border)),
+                    ),
+                    child: SizedBox(
+                      width: Spacing.sidebarWidth,
+                      child: SingleChildScrollView(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [ProjectFrame(), RuntimeFrame()],
+                        ),
                       ),
                     ),
                   ),
-                ),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Expanded(child: ViewerFrame()),
-                      SizedBox(height: Spacing.logHeight, child: LogFrame()),
-                    ],
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Expanded(child: ViewerFrame()),
+                        SizedBox(height: Spacing.logHeight, child: LogFrame()),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          StatusBarFrame(),
-        ],
+            StatusBarFrame(),
+          ],
+        ),
       ),
     );
   }

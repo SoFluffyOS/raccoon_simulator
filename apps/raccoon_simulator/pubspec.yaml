@@ -17,3 +17,10 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  integration_test:
+    sdk: flutter
+  path: ^1.9.1
+  raccoon:
+    path: ../../pub_packages/raccoon
+  raccoon_view:
+    path: ../../packages/raccoon_view
