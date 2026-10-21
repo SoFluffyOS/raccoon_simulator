@@ -1,0 +1,34 @@
+# Files and directories created by pub
+.dart_tool/
+.packages
+build/
+pubspec.lock
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# VS Code related
+.vscode/
+
+# Flutter/Dart/Pub related
+**/doc/api/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+
+# Symbolication and obfuscation
+app.*.symbols
+app.*.map.json
+
+# Coverage
+coverage/
+
+# Temporary files
+*.log
+*.swp
+.DS_Store
+.history

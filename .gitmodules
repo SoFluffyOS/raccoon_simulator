@@ -1,0 +1,16 @@
+[submodule "pub_packages/raccoon"]
+	path = pub_packages/raccoon
+	url = https://github.com/simonpham/raccoon.git
+	branch = main
+[submodule "packages/raccoon_runtime"]
+	path = packages/raccoon_runtime
+	url = https://github.com/simonpham/raccoon_runtime.git
+	branch = main
+[submodule "packages/raccoon_view"]
+	path = packages/raccoon_view
+	url = https://github.com/simonpham/raccoon_view.git
+	branch = main
+[submodule "native/raccoon_runner"]
+	path = native/raccoon_runner
+	url = https://github.com/simonpham/raccoon_runner.git
+	branch = main
