@@ -46,7 +46,7 @@ Raccoon speeds up the inner loop: write, save, see. It doesn't replace testing o
 ## Quick Start
 
 ```sh
-git clone --recurse-submodules https://github.com/simonpham/raccoon_simulator.git
+git clone --recurse-submodules https://github.com/SoFluffyOS/raccoon_simulator.git
 cd raccoon_simulator
 ./get.sh
 cd apps/raccoon_simulator
@@ -89,7 +89,7 @@ You can also skip the editor. Open **Settings**, pick a Flutter project under **
 
 ## Contributing
 
-Ideas and contributions are welcome. Before you start on a pull request, open an [issue](https://github.com/simonpham/raccoon_simulator/issues) or a [discussion](https://github.com/simonpham/raccoon_simulator/discussions), or say hi on the [SoFluffy Discord](https://discord.gg/VP6p5JQdgt). Things move fast, so let's agree on the plan first.
+Ideas and contributions are welcome. Before you start on a pull request, open an [issue](https://github.com/SoFluffyOS/raccoon_simulator/issues) or a [discussion](https://github.com/SoFluffyOS/raccoon_simulator/discussions), or say hi on the [SoFluffy Discord](https://discord.gg/VP6p5JQdgt). Things move fast, so let's agree on the plan first.
 
 ```sh
 ./run_tests.sh                 # analyze, unit and widget tests
