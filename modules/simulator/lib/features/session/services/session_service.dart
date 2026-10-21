@@ -40,6 +40,8 @@ final class SessionService extends ChangeNotifier {
 
   final _sessions = <String, RunnerSession>{};
   final _refused = <String>{};
+  final _freshSince = <String, DateTime>{};
+  Timer? _freshPoll;
   StreamSubscription<List<UnixSocketEndpoint>>? _watch;
   RunnerDiscovery? _discovery;
   var _endpoints = <UnixSocketEndpoint>[];
@@ -85,6 +87,62 @@ final class SessionService extends ChangeNotifier {
     return _enqueue(() => _sync(_endpoints, generation));
   }
 
+  /// Connects to [name]'s runner only through a socket created after
+  /// [since], dropping the current session if it is older.
+  ///
+  /// A runner left over from an earlier run, or one whose tool died, keeps
+  /// listening on an old socket until the new runner replaces it; without
+  /// this the simulator could attach to the stale app. Call it as a run
+  /// starts. Old sockets are checked again until a fresh one appears or
+  /// [freshTimeout] passes.
+  void expectFresh(String name, {required DateTime since}) {
+    _freshSince[name] = since;
+    _refused.remove(name);
+    final generation = _generation;
+    unawaited(
+      _enqueue(() async {
+        final session = _sessions[name];
+        if (session != null && !_isFresh(session.endpoint, since)) {
+          await _close(name);
+        }
+        await _sync(_discovery?.list() ?? _endpoints, generation);
+      }),
+    );
+    _freshPoll ??= Timer.periodic(freshPollInterval, (_) => _pollFresh());
+  }
+
+  /// How often old sockets are looked at again, see [expectFresh].
+  static const freshPollInterval = Duration(milliseconds: 250);
+
+  /// How long [expectFresh] waits for a fresh socket.
+  static const freshTimeout = Duration(minutes: 3);
+
+  void _pollFresh() {
+    final now = DateTime.now();
+    _freshSince.removeWhere(
+      (name, since) =>
+          _sessions.containsKey(name) || now.difference(since) > freshTimeout,
+    );
+    if (_freshSince.isEmpty) {
+      _freshPoll?.cancel();
+      _freshPoll = null;
+      return;
+    }
+    final generation = _generation;
+    unawaited(
+      _enqueue(() => _sync(_discovery?.list() ?? _endpoints, generation)),
+    );
+  }
+
+  /// Whether [endpoint]'s socket file was made after [since], give or take
+  /// the file system's timestamp resolution.
+  static bool _isFresh(UnixSocketEndpoint endpoint, DateTime since) {
+    final stat = FileStat.statSync(endpoint.path);
+    if (stat.type == FileSystemEntityType.notFound) return false;
+    final made = stat.changed;
+    return !made.isBefore(since.subtract(const Duration(seconds: 1)));
+  }
+
   /// Lets [follow]'s work settle; for tests.
   @visibleForTesting
   Future<void> get settled => _work;
@@ -120,6 +178,9 @@ final class SessionService extends ChangeNotifier {
     UnixSocketEndpoint endpoint,
     int generation,
   ) async {
+    if (_freshSince[name] case final since? when !_isFresh(endpoint, since)) {
+      return;
+    }
     final RunnerClient client;
     try {
       client = await _connect(endpoint);
@@ -181,6 +242,9 @@ final class SessionService extends ChangeNotifier {
     }
     _sessions.clear();
     _refused.clear();
+    _freshSince.clear();
+    _freshPoll?.cancel();
+    _freshPoll = null;
     _endpoints = [];
   }
 

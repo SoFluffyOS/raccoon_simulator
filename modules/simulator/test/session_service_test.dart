@@ -135,4 +135,26 @@ void main() {
     expect(service.session('hello'), isNull);
     expect(service.directory, other.path);
   });
+
+  test('expectFresh skips a stale runner until a new socket appears', () async {
+    final stale = await FakeRunner.start(socket('hello'), pid: 1);
+    service.follow(RunnerDiscovery(temp.path));
+    await until(() => service.session('hello')?.pid == 1);
+
+    await Future<void>.delayed(const Duration(milliseconds: 1100));
+    service.expectFresh('hello', since: DateTime.now());
+    await until(() => service.session('hello') == null);
+    await Future<void>.delayed(const Duration(milliseconds: 600));
+    expect(service.session('hello'), isNull, reason: 'the old socket is stale');
+
+    // The new runner replaces the socket while the stale one keeps running.
+    File(socket('hello')).deleteSync();
+    final fresh = await FakeRunner.start(socket('hello'), pid: 2);
+    addTearDown(() async {
+      await fresh.stop();
+      await stale.stop();
+    });
+
+    await until(() => service.session('hello')?.pid == 2);
+  });
 }
