@@ -55,16 +55,18 @@ final class FakeRunner {
   /// quickly that its socket path never changes.
   void dropClients() {
     for (final client in _clients) {
-      client.destroy();
+      unawaited(client.close().then<void>((_) {}, onError: (Object _) {}));
     }
     _clients.clear();
   }
 
-  /// Exits like a runner: drops its clients and removes its socket.
+  /// Exits like a runner: closes its clients' connections and removes its
+  /// socket.
   Future<void> stop() async {
     for (final client in _clients) {
-      client.destroy();
+      unawaited(client.close().then<void>((_) {}, onError: (Object _) {}));
     }
+    _clients.clear();
     await _server.close();
     final file = File(path);
     if (file.existsSync()) file.deleteSync();
