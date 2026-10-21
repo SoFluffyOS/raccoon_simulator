@@ -11,9 +11,9 @@ Open Raccoon Simulator, and Raccoon shows up in `flutter devices`. Pick it in VS
 
 ## Demo
 
-[![Flutter Wonderous running inside Lumide on Raccoon: edit a color, save, and the app hot reloads in its pane](docs/media/raccoon-wonderous-demo.gif)](docs/media/raccoon-wonderous-demo.mp4)
+[![Flutter Wonderous running inside Lumide on Raccoon: edit a color, save, and the app hot reloads in its pane](https://github.com/user-attachments/assets/1acb4513-ac41-4376-b351-6295ddc439cd)](https://github.com/user-attachments/assets/c7005e54-43fe-48a1-9c44-0e8c6e8c84f2)
 
-Flutter Wonderous running inside [Lumide](https://lumide.dev) on Raccoon: pick Raccoon, press Run, click through the app, edit a color, save, and it hot reloads. [Watch the full demo](docs/media/raccoon-wonderous-demo.mp4) (45 s).
+Flutter Wonderous running inside [Lumide](https://lumide.dev) on Raccoon: pick Raccoon, press Run, click through the app, edit a color, save, and it hot reloads. [Watch the full demo](https://github.com/user-attachments/assets/c7005e54-43fe-48a1-9c44-0e8c6e8c84f2) (45 s).
 
 ## Highlights
 
