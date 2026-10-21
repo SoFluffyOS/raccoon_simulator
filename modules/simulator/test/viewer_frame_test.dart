@@ -127,12 +127,18 @@ void main() {
 
     expect(shownConnection(tester), same(sessions.session('counter')?.client));
 
-    await tester.runAsync(() async {
-      await editorRun.stop();
-      await until(() => sessions.session('counter') == null);
-    });
-    await tester.pump();
-    expect(find.text('Waiting for your app'), findsOneWidget);
+    await tester.runAsync(editorRun.stop);
+    // A poll may still see the closing runner's socket for a moment, and
+    // reconnect or count it as refused; the window settles once it is gone.
+    final waiting = find.text('Waiting for your app');
+    for (var i = 0; i < 100 && waiting.evaluate().isEmpty; i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 20)),
+      );
+      await tester.pump();
+    }
+    expect(waiting, findsOneWidget);
+    expect(sessions.shownApp(), isNull);
   });
 
   testWidgets('says to press Run while no runner serves the app', (
