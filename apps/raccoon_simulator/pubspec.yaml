@@ -1,0 +1,19 @@
+name: raccoon_simulator
+description: "Raccoon Simulator: run your Flutter app on the Raccoon runtime and see it in a window."
+publish_to: "none"
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.13.0
+
+resolution: workspace
+
+dependencies:
+  flutter:
+    sdk: flutter
+  simulator:
+    path: ../../modules/simulator
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter

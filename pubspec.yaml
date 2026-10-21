@@ -1,0 +1,18 @@
+name: raccoon_simulator_workspace
+publish_to: "none"
+
+environment:
+  sdk: ^3.13.0
+
+workspace:
+  - apps/raccoon_simulator
+  - modules/simulator
+  - packages/raccoon_runtime
+  - packages/raccoon_view
+  # raccoon_view's example app declares `resolution: workspace`, and pub
+  # refuses to resolve while it sits under a member with no root listing it.
+  # Listed for that reason only; nothing here imports it.
+  - packages/raccoon_view/example
+
+dev_dependencies:
+  lints: ^6.0.0

@@ -1,0 +1,27 @@
+name: simulator
+description: The Raccoon Simulator's features - project picker, runtime setup, flutter run on the Raccoon device, and the app viewer.
+publish_to: "none"
+
+environment:
+  sdk: ^3.13.0
+
+resolution: workspace
+
+dependencies:
+  flutter:
+    sdk: flutter
+  file_selector: ^1.0.3
+  path: ^1.9.1
+  provider: ^6.1.2
+  raccoon:
+    path: ../../pub_packages/raccoon
+  raccoon_runtime:
+    path: ../../packages/raccoon_runtime
+  raccoon_view:
+    path: ../../packages/raccoon_view
+  shared_preferences: ^2.3.0
+  yaml: ^3.1.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
