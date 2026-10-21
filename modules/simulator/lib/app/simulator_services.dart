@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:raccoon_runtime/raccoon_runtime.dart';
 import 'package:raccoon_view/raccoon_view.dart';
@@ -36,7 +37,11 @@ final class SimulatorServices {
       private: false,
     );
     final sessions = SessionService(
-      connect: (endpoint) => RunnerClient.connect(endpoint, composes: true),
+      connect: (endpoint) => RunnerClient.connect(
+        endpoint,
+        composes: true,
+        gpuBuffers: Platform.isLinux,
+      ),
       onConnected: const IdePlatformChannels().register,
     );
     final runtime = RuntimeViewModel(
