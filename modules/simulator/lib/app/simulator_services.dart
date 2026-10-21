@@ -36,7 +36,7 @@ final class SimulatorServices {
       private: false,
     );
     final sessions = SessionService(
-      connect: RunnerClient.connect,
+      connect: (endpoint) => RunnerClient.connect(endpoint, composes: true),
       onConnected: const IdePlatformChannels().register,
     );
     final runtime = RuntimeViewModel(

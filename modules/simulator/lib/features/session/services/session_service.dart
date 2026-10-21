@@ -6,7 +6,7 @@ import 'package:raccoon_runtime/raccoon_runtime.dart';
 import 'package:simulator/features/session/models/models.dart';
 import 'package:simulator/utils/utils.dart';
 
-/// Connects to a runner; [RunnerClient.connect] in the app.
+/// Connects to a runner; [(endpoint) => RunnerClient.connect(endpoint, composes: true)] in the app.
 typedef RunnerConnector = Future<RunnerClient> Function(
   UnixSocketEndpoint endpoint,
 );
