@@ -18,7 +18,7 @@ Flutter Wonderous running inside [Lumide](https://lumide.dev) on Raccoon: pick R
 ## Highlights
 
 - **Your editor, your workflow**: run, hot reload, hot restart and debug from your editor. The simulator just shows the app.
-- **Set up on launch**: the first launch builds the runner, installs the engine and registers the Raccoon custom device for you.
+- **Set up on launch**: the first launch downloads the prebuilt runner (or builds it when no release fits your host), installs the engine and registers the Raccoon custom device for you.
 - **A simulator window**: a compact toolbar over your app. Everything else lives in Settings.
 - **Device sizes**: Fit, Phone, Tablet and Desktop presets that scale down to fit.
 - **macOS and Linux**.
@@ -53,7 +53,7 @@ cd apps/raccoon_simulator
 flutter run -d macos   # or -d linux
 ```
 
-The first launch takes a few minutes while it builds the runner. Then:
+The first launch downloads the runner, or builds it when no release fits your host, which takes a few minutes. Then:
 
 ```sh
 flutter devices                # lists Raccoon
@@ -64,8 +64,12 @@ flutter run -d raccoon         # or pick Raccoon in your editor
 ## Requirements
 
 - Flutter 3.47+
-- A C++17 compiler, CMake, Ninja, `curl` and `unzip` to build the runner
-- macOS: `xcode-select --install` and `brew install cmake ninja`
+- To build the runner yourself, when no prebuilt release fits your host or you want your own build: a C++17 compiler, CMake, Ninja, `curl` and `unzip`
+- macOS: `xcode-select --install` and `brew install cmake ninja`, for that build
+
+## Prebuilt binaries
+
+**Download** in Settings fetches the runner release that matches this checkout (the same major and minor as `native/raccoon_runner/VERSION`) from [raccoon_runner's releases](https://github.com/SoFluffyOS/raccoon_runner/releases) and unpacks it, binary and device helper, into `~/.local/share/raccoon_simulator/runner` (under `$XDG_DATA_HOME` when set). The Raccoon device then points at that helper. **Build** stays for when there is no release for your host or no network; setup tries Download first, and a build in `native/raccoon_runner/build` always wins over a download. The download carries no quarantine attribute on macOS; an archive you fetch with a browser needs `xattr -d com.apple.quarantine raccoon_runner` before it runs.
 
 ## Run from the simulator
 
