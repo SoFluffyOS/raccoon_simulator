@@ -1,3 +1,17 @@
 import 'package:flutter/widgets.dart';
+import 'package:simulator/simulator.dart';
 
-void main() => runApp(const Center(child: Text('Raccoon Simulator', textDirection: TextDirection.ltr)));
+/// `raccoon_simulator [project folder] [--run]`
+void main(List<String> arguments) {
+  WidgetsFlutterBinding.ensureInitialized();
+  final services = SimulatorServices.create(
+    host: HostInfo.current(),
+    settings: PreferencesSettingsStore(),
+  );
+  runApp(
+    SimulatorApp(
+      services: services,
+      options: SimulatorOptions.parse(arguments),
+    ),
+  );
+}

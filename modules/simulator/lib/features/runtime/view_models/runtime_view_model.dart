@@ -37,7 +37,7 @@ final class RuntimeViewModel extends ChangeNotifier {
 
   FlutterSdk? _sdk;
   CheckoutPaths? _checkout;
-  var _checks = <RuntimeCheck>[];
+  List<RuntimeCheck> _checks = const [];
   CheckKind? _fixing;
   String? _fixError;
   var _privateSockets = true;
@@ -48,7 +48,8 @@ final class RuntimeViewModel extends ChangeNotifier {
 
   CheckoutPaths? get checkout => _checkout;
 
-  List<RuntimeCheck> get checks => List.unmodifiable(_checks);
+  /// The same list until the next [refresh].
+  List<RuntimeCheck> get checks => _checks;
 
   /// The check whose fix is running.
   CheckKind? get fixing => _fixing;
@@ -83,7 +84,9 @@ final class RuntimeViewModel extends ChangeNotifier {
   void refresh() {
     _sdk = _locateSdk(host);
     _checkout = _locateCheckout(host);
-    _checks = _doctor.check(sdk: _sdk, checkout: _checkout);
+    _checks = List.unmodifiable(
+      _doctor.check(sdk: _sdk, checkout: _checkout),
+    );
     _notify();
   }
 

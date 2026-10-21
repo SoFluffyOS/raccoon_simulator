@@ -21,20 +21,20 @@ final class ProjectViewModel extends ChangeNotifier {
   final int maxRecent;
 
   SimulatorProject? _project;
-  var _recent = <String>[];
+  List<String> _recent = const [];
   String? _error;
   var _disposed = false;
 
   SimulatorProject? get project => _project;
 
-  /// Recently opened folders, newest first.
-  List<String> get recent => List.unmodifiable(_recent);
+  /// Recently opened folders, newest first. The same list until it changes.
+  List<String> get recent => _recent;
 
   /// Why the last folder could not be opened.
   String? get error => _error;
 
   Future<void> init({String? initialDirectory}) async {
-    _recent = await _settings.recentProjects();
+    _recent = List.unmodifiable(await _settings.recentProjects());
     _notify();
     if (initialDirectory case final directory?) await open(directory);
   }
@@ -58,20 +58,22 @@ final class ProjectViewModel extends ChangeNotifier {
     }
     _project = project;
     _error = null;
-    _recent = [
-      project.directory,
-      for (final known in _recent)
-        if (known != project.directory) known,
-    ].take(maxRecent).toList();
+    _recent = List.unmodifiable(
+      [
+        project.directory,
+        for (final known in _recent)
+          if (known != project.directory) known,
+      ].take(maxRecent),
+    );
     _notify();
     await _settings.setRecentProjects(_recent);
   }
 
   Future<void> forget(String directory) async {
-    _recent = [
+    _recent = List.unmodifiable([
       for (final known in _recent)
         if (known != directory) known,
-    ];
+    ]);
     _notify();
     await _settings.setRecentProjects(_recent);
   }
