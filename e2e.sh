@@ -10,6 +10,11 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
+case "$(uname -s)" in
+  Darwin) desktop=macos ;;
+  *) desktop=linux ;;
+esac
+
 project="${1:-$PWD/native/raccoon_runner/example/hello}"
 defines=(--dart-define="RACCOON_E2E_PROJECT=$project")
 if [ -n "${2:-}" ]; then
@@ -17,4 +22,4 @@ if [ -n "${2:-}" ]; then
 fi
 
 (cd modules/simulator && RACCOON_E2E=1 flutter test test/e2e/runtime_setup_e2e_test.dart)
-(cd apps/raccoon_simulator && flutter test integration_test/hello_e2e_test.dart -d linux "${defines[@]}")
+(cd apps/raccoon_simulator && flutter test integration_test/hello_e2e_test.dart -d "$desktop" "${defines[@]}")

@@ -13,11 +13,38 @@ final class HostInfo {
 
   factory HostInfo.current() => HostInfo(
     operatingSystem: Platform.operatingSystem,
-    environment: Platform.environment,
+    environment: withToolPaths(
+      Platform.operatingSystem,
+      Platform.environment,
+    ),
     temporaryDirectory: Directory.systemTemp.path,
     workingDirectory: Directory.current.path,
     executable: Platform.resolvedExecutable,
   );
+
+  /// Folders an app opened from the Finder or the Dock misses: it gets
+  /// launchd's bare PATH, without Homebrew's `flutter`, `cmake` and `ninja`.
+  static const macosToolDirectories = ['/opt/homebrew/bin', '/usr/local/bin'];
+
+  /// [environment] with [macosToolDirectories] at the end of its PATH on
+  /// macOS, so a terminal's PATH still wins.
+  static Map<String, String> withToolPaths(
+    String operatingSystem,
+    Map<String, String> environment,
+  ) {
+    if (operatingSystem != 'macos') return environment;
+    final path = environment['PATH'] ?? '';
+    final present = path.split(':').toSet();
+    final missing = [
+      for (final directory in macosToolDirectories)
+        if (!present.contains(directory)) directory,
+    ];
+    if (missing.isEmpty) return environment;
+    return {
+      ...environment,
+      'PATH': [if (path.isNotEmpty) path, ...missing].join(':'),
+    };
+  }
 
   final String operatingSystem;
   final Map<String, String> environment;

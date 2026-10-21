@@ -5,7 +5,7 @@
 // clipboard read over the platform channel (purple), switches to the phone
 // preset, and stops.
 //
-//   flutter test integration_test/hello_e2e_test.dart -d linux \
+//   flutter test integration_test/hello_e2e_test.dart -d <linux or macos> \
 //     [--dart-define=RACCOON_E2E_PROJECT=<folder of a hello-like app>] \
 //     [--dart-define=RACCOON_E2E_SCREENSHOTS=<folder for PNGs>]
 import 'dart:io';
