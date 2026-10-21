@@ -13,6 +13,7 @@ import 'package:simulator/ui/ui.dart';
 import 'package:sofluffy_ui/sofluffy_ui.dart';
 
 import 'support/fake_runner.dart';
+import 'support/watched_folder.dart';
 
 void main() {
   late Directory temp;
@@ -119,7 +120,7 @@ void main() {
         p.join(temp.path, 'counter.sock'),
         pid: 4,
       );
-      sessions.follow([RunnerDiscovery(temp.path)]);
+      sessions.follow([watched(temp.path)]);
       await until(() => sessions.session('counter') != null);
     });
     await tester.pumpWidget(app());
@@ -151,7 +152,7 @@ void main() {
       await tester.runAsync(() async {
         await openProject('hello');
         runners.add(await FakeRunner.start(socket, pid: 1));
-        sessions.follow([RunnerDiscovery(temp.path)]);
+        sessions.follow([watched(temp.path)]);
         await until(() => sessions.session('hello')?.pid == 1);
       });
       await tester.pumpWidget(app());
@@ -185,7 +186,7 @@ void main() {
         p.join(temp.path, 'hello.sock'),
         refuse: true,
       );
-      sessions.follow([RunnerDiscovery(temp.path)]);
+      sessions.follow([watched(temp.path)]);
       await until(() => sessions.isRefused('hello'));
     });
     await tester.pumpWidget(app());
