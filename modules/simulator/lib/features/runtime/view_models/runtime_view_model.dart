@@ -64,6 +64,10 @@ final class RuntimeViewModel extends ChangeNotifier {
   bool get isReady =>
       _checks.isNotEmpty && _checks.every((check) => check.passes);
 
+  /// Whether a check ran and something is missing: the window then points
+  /// at setup.
+  bool get needsSetup => _checks.isNotEmpty && !isReady;
+
   bool get privateSockets => _privateSockets;
 
   RunnerSockets get sockets => _sockets;

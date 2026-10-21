@@ -9,6 +9,7 @@ import 'package:simulator/app/simulator_options.dart';
 import 'package:simulator/app/simulator_services.dart';
 import 'package:simulator/design/design.dart';
 import 'package:simulator/ui/ui.dart';
+import 'package:sofluffy_ui/sofluffy_ui.dart';
 
 /// The simulator window. Owns [services] once given them: they are
 /// initialised here and disposed with the widget.
@@ -29,6 +30,7 @@ class SimulatorApp extends StatefulWidget {
 class _SimulatorAppState extends State<SimulatorApp> {
   late final AppLifecycleListener _lifecycle;
   final _signals = <StreamSubscription<ProcessSignal>>[];
+  final _screenSize = ScreenSizeNotifier();
 
   SimulatorServices get _services => widget.services;
 
@@ -38,6 +40,15 @@ class _SimulatorAppState extends State<SimulatorApp> {
     _lifecycle = AppLifecycleListener(onExitRequested: _onExitRequested);
     _watchSignals();
     unawaited(_services.init(widget.options));
+  }
+
+  /// Keeps [_screenSize] on the window's size class as it resizes.
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final size = ScreenSize.of(context);
+    if (size == _screenSize.screenSize) return;
+    _screenSize.updateScreenSize(size);
   }
 
   /// SIGTERM and SIGINT end the process without an exit request, which
@@ -67,6 +78,7 @@ class _SimulatorAppState extends State<SimulatorApp> {
       unawaited(signal.cancel());
     }
     _lifecycle.dispose();
+    _screenSize.dispose();
     _services.dispose();
     super.dispose();
   }
@@ -81,14 +93,25 @@ class _SimulatorAppState extends State<SimulatorApp> {
         ChangeNotifierProvider.value(value: _services.runtime),
         ChangeNotifierProvider.value(value: _services.project),
         ChangeNotifierProvider.value(value: _services.viewer),
+        ChangeNotifierProvider.value(value: _screenSize),
         Provider<SimulatorController>.value(value: _services.controller),
       ],
-      child: WidgetsApp(
-        title: 'Raccoon Simulator',
-        color: Palette.accent,
-        debugShowCheckedModeBanner: false,
-        textStyle: Typography.body,
-        builder: (context, _) => const SimulatorPage(),
+      child: FluffyTheme(
+        data: SimulatorTheme.data,
+        child: WidgetsApp(
+          title: 'Raccoon Simulator',
+          color: Palette.accent,
+          debugShowCheckedModeBanner: false,
+          textStyle: SimulatorTheme.data.typography.base2.copyWith(
+            color: Palette.text,
+          ),
+          // A navigator, for the settings dialog.
+          pageRouteBuilder: <T>(settings, builder) => PageRouteBuilder<T>(
+            settings: settings,
+            pageBuilder: (context, _, _) => builder(context),
+          ),
+          home: const SimulatorPage(),
+        ),
       ),
     );
   }

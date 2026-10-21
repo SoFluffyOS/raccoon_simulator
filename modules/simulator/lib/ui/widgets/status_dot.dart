@@ -1,5 +1,5 @@
 import 'package:flutter/widgets.dart';
-import 'package:simulator/design/design.dart';
+import 'package:sofluffy_ui/sofluffy_ui.dart';
 
 /// A small filled circle in a status colour.
 class StatusDot extends StatelessWidget {
@@ -10,8 +10,8 @@ class StatusDot extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: Spacing.statusDot,
-      height: Spacing.statusDot,
+      width: Spacing.d8,
+      height: Spacing.d8,
       decoration: BoxDecoration(color: color, shape: BoxShape.circle),
     );
   }

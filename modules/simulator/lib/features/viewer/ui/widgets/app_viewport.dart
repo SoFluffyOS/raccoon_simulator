@@ -3,6 +3,7 @@ import 'package:raccoon_runtime/raccoon_runtime.dart';
 import 'package:raccoon_view/raccoon_view.dart';
 import 'package:simulator/design/design.dart';
 import 'package:simulator/features/viewer/models/models.dart';
+import 'package:sofluffy_ui/sofluffy_ui.dart';
 
 /// The hosted app at [preset]'s size: the whole viewport for Fit, else the
 /// device's logical size at its pixel ratio, scaled down to fit.
@@ -31,7 +32,7 @@ class AppViewport extends StatelessWidget {
     final size = preset.size;
     if (size == null) return screen;
     return Padding(
-      padding: const EdgeInsets.all(Spacing.d16),
+      padding: EdgeInsets.all(Spacing.d16),
       child: Center(
         child: FittedBox(
           fit: BoxFit.scaleDown,

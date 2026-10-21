@@ -1,1 +1,1 @@
-export 'package:simulator/features/project/ui/frames/project_frame.dart';
+export 'package:simulator/features/project/ui/frames/project_settings_frame.dart';

@@ -81,7 +81,7 @@ void main() {
     );
     await _screenshot(tester, '2-tapped');
 
-    await tester.tap(find.text('Hot reload'));
+    await tester.tap(find.byKey(ToolbarFrame.reloadKey));
     await _pumpUntil(
       tester,
       () => services.run.lastRestart?.kind == RestartKind.hotReload,
@@ -93,7 +93,7 @@ void main() {
       'hot reload ${services.run.lastRestart?.duration.inMilliseconds} ms',
     );
 
-    await tester.tap(find.text('Hot restart'));
+    await tester.tap(find.byKey(ToolbarFrame.restartKey));
     await _pumpUntil(
       tester,
       () => services.run.lastRestart?.kind == RestartKind.hotRestart,
@@ -134,7 +134,7 @@ void main() {
     if (client != null) const IdePlatformChannels().register(client);
     _report('platform channel served by the simulator');
 
-    await tester.tap(find.text('Phone'));
+    await tester.tap(find.byKey(PresetBarFrame.keyOf(SizePreset.phone)));
     await _pumpUntil(
       tester,
       () => frame()?.width == 1170 && frame()?.height == 2532,
@@ -142,7 +142,7 @@ void main() {
     );
     await _screenshot(tester, '3-phone');
 
-    await tester.tap(find.text('Stop'));
+    await tester.tap(find.byKey(ToolbarFrame.stopKey));
     await _pumpUntil(
       tester,
       () =>

@@ -19,32 +19,61 @@ void main() {
     executable: p.join(temp.path, 'raccoon_simulator'),
   );
 
-  testWidgets('a machine without the runtime shows what is missing', (
-    tester,
-  ) async {
+  Future<SimulatorServices> open(WidgetTester tester, Size size) async {
     tester.view
-      ..physicalSize = const Size(1360, 880)
+      ..physicalSize = size
       ..devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     final services = SimulatorServices.create(
       host: bareHost(),
       settings: MemorySettingsStore(),
     );
-
     await tester.pumpWidget(SimulatorApp(services: services));
     await tester.runAsync(() => Future<void>.delayed(Duration.zero));
     await tester.pump();
+    return services;
+  }
 
-    expect(find.text('Waiting for your app'), findsOneWidget);
-    expect(find.text('Run'), findsOneWidget);
+  testWidgets('a machine without the runtime points at setup', (
+    tester,
+  ) async {
+    final services = await open(tester, const Size(1360, 880));
+
+    expect(find.text('Raccoon needs setup'), findsOneWidget);
     expect(services.controller.runBlocker, isNotNull);
-    expect(find.text('Set up'), findsOneWidget);
     expect(services.runtime.settingUp, isFalse, reason: 'no SDK to set up');
+    expect(find.byKey(ToolbarFrame.runKey), findsNothing, reason: 'no project');
+    for (final preset in SizePreset.all) {
+      expect(find.byKey(PresetBarFrame.keyOf(preset)), findsOneWidget);
+    }
+
+    await tester.tap(find.byKey(ToolbarFrame.settingsKey));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Settings'), findsOneWidget);
+    expect(find.text('Set up'), findsOneWidget);
     for (final kind in CheckKind.values) {
       expect(find.text(kind.label), findsOneWidget);
     }
     expect(find.text('Private runner sockets'), findsOneWidget);
-    expect(find.text('Fit'), findsOneWidget);
+    expect(find.text('Open…'), findsOneWidget);
+
+    await tester.tap(find.byKey(SettingsDialog.closeKey));
+    await tester.pumpAndSettle();
+    expect(find.text('Settings'), findsNothing);
+
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('a narrow window steps through the presets with one button', (
+    tester,
+  ) async {
+    final services = await open(tester, const Size(480, 720));
+
+    expect(find.byKey(PresetBarFrame.keyOf(SizePreset.phone)), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('preset-next')));
+    await tester.pump();
+    expect(services.viewer.preset, SizePreset.phone);
 
     await tester.pumpWidget(const SizedBox());
   });

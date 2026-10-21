@@ -2,11 +2,12 @@ import 'package:flutter/widgets.dart';
 import 'package:provider/provider.dart';
 import 'package:simulator/design/design.dart';
 import 'package:simulator/features/features.dart';
+import 'package:simulator/ui/dialogs/dialogs.dart';
 
 /// The viewport: the shown app's live session at the chosen size, or what
 /// stands in its way. The shown app is the simulator's own run, else the
 /// project's app, else the app run last from an editor, see
-/// [SessionService.shownApp].
+/// [SessionService.shownApp]. With no app, it shows setup's progress.
 ///
 /// It looks the session up by app name on every change rather than holding
 /// one, so a runner that comes back under the same name after a stop or a
@@ -53,6 +54,14 @@ class ViewerFrame extends StatelessWidget {
     final directory = context.select<SessionService, String?>(
       (service) => service.directories.firstOrNull,
     );
+    final setup = context.select<RuntimeViewModel, _Setup>(
+      (viewModel) => (
+        running: viewModel.settingUp,
+        step: viewModel.fixing,
+        needed: viewModel.needsSetup,
+        error: viewModel.fixError,
+      ),
+    );
     return ColoredBox(
       color: Palette.viewport,
       child: _content(
@@ -65,6 +74,7 @@ class ViewerFrame extends StatelessWidget {
         error: error,
         preset: preset,
         directory: directory,
+        setup: setup,
       ),
     );
   }
@@ -79,15 +89,9 @@ class ViewerFrame extends StatelessWidget {
     required String? error,
     required SizePreset preset,
     required String? directory,
+    required _Setup setup,
   }) {
-    if (name == null) {
-      return const ViewerMessage(
-        title: 'Waiting for your app',
-        detail:
-            'Pick Raccoon in your editor\'s device list and run, or run '
-            'flutter run -d raccoon in your project. The app shows up here.',
-      );
-    }
+    if (name == null) return _noApp(context, setup);
     if (session case final session?) {
       return AppViewport(connection: session.client, preset: preset);
     }
@@ -122,4 +126,33 @@ class ViewerFrame extends StatelessWidget {
       RunPhase.stopping => ViewerMessage(title: 'Stopping $name'),
     };
   }
+
+  Widget _noApp(BuildContext context, _Setup setup) {
+    if (setup.running) {
+      return ViewerMessage(
+        title: 'Setting up Raccoon',
+        detail:
+            '${setup.step?.label ?? 'Checking'}… The first runner build '
+            'takes a few minutes.',
+      );
+    }
+    if (setup.needed) {
+      return ViewerMessage(
+        title: 'Raccoon needs setup',
+        detail: setup.error ?? 'Open settings to see what is missing.',
+        isError: setup.error != null,
+        actionLabel: 'Open settings',
+        onAction: () => SettingsDialog.show(context),
+      );
+    }
+    return const ViewerMessage(
+      title: 'Waiting for your app',
+      detail:
+          'Pick Raccoon in your editor\'s device list and run, or run '
+          'flutter run -d raccoon in your project. The app shows up here.',
+    );
+  }
 }
+
+/// What the viewport tells about setup while no app shows.
+typedef _Setup = ({bool running, CheckKind? step, bool needed, String? error});

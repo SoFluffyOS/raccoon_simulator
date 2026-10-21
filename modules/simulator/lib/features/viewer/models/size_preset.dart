@@ -30,6 +30,10 @@ final class SizePreset {
 
   static const all = [fit, phone, tablet, desktop];
 
+  /// The preset after this one in [all], wrapping around; for the single
+  /// preset button of a narrow window.
+  SizePreset get next => all[(all.indexOf(this) + 1) % all.length];
+
   final String name;
 
   /// Logical size, or null to fill the viewport.

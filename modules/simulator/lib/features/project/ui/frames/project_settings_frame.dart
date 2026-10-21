@@ -6,12 +6,13 @@ import 'package:simulator/features/project/ui/widgets/widgets.dart';
 import 'package:simulator/features/project/view_models/view_models.dart';
 import 'package:simulator/features/run/view_models/view_models.dart';
 import 'package:simulator/ui/widgets/widgets.dart';
+import 'package:sofluffy_ui/sofluffy_ui.dart';
 
-/// The sidebar's project block, for running an app from the simulator
+/// The settings' project block, for running an app from the simulator
 /// instead of an editor: open a folder, or pick a recent one. Locked while a
 /// run is active.
-class ProjectFrame extends StatelessWidget {
-  const ProjectFrame({super.key});
+class ProjectSettingsFrame extends StatelessWidget {
+  const ProjectSettingsFrame({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -28,34 +29,32 @@ class ProjectFrame extends StatelessWidget {
       (viewModel) => viewModel.isActive,
     );
     final viewModel = context.read<ProjectViewModel>();
-    return PanelSection(
-      title: 'Project',
+    final caption = context.fluffyTheme.typography.caption2.copyWith(
+      color: Palette.textMuted,
+    );
+    return SettingsSection(
+      title: 'Run from the simulator',
       actions: [
-        ToolButton(
+        Button(
+          variant: ButtonVariant.ghost,
           label: 'Open…',
-          onTap: switch (locked) {
-            true => null,
-            false => viewModel.pick,
-          },
+          enable: !locked,
+          onPressed: viewModel.pick,
         ),
       ],
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (project == null && recent.isEmpty)
-            const Text(
-              'Optional: open a Flutter app here to run it from the '
-              'simulator. Runs from your editor show up on their own.',
-              style: Typography.caption,
-            ),
-          if (error case final error?)
-            Padding(
-              padding: const EdgeInsets.only(bottom: Spacing.d8),
-              child: Text(
-                error,
-                style: Typography.caption.copyWith(color: Palette.error),
-              ),
-            ),
+          Text(
+            'Optional. Runs from your editor show up on their own; open a '
+            'project here to run it with the toolbar instead.',
+            style: caption,
+          ),
+          if (error case final error?) ...[
+            Spacing.v4,
+            Text(error, style: caption.copyWith(color: Palette.error)),
+          ],
+          Spacing.v8,
           for (final directory in recent)
             RecentProjectRow(
               key: ValueKey(directory),

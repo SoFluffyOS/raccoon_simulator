@@ -6,9 +6,11 @@ import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 import 'package:raccoon_runtime/raccoon_runtime.dart';
 import 'package:raccoon_view/raccoon_view.dart';
+import 'package:simulator/design/design.dart';
 import 'package:simulator/features/features.dart';
 import 'package:simulator/services/services.dart';
 import 'package:simulator/ui/ui.dart';
+import 'package:sofluffy_ui/sofluffy_ui.dart';
 
 import 'support/fake_runner.dart';
 
@@ -19,6 +21,7 @@ void main() {
   late RunLog log;
   late RunViewModel run;
   late ViewerViewModel viewer;
+  late RuntimeViewModel runtime;
 
   setUp(() {
     temp = Directory.systemTemp.createTempSync('simulator_viewer');
@@ -30,6 +33,22 @@ void main() {
     log = RunLog();
     run = RunViewModel(log: log);
     viewer = ViewerViewModel();
+    final host = HostInfo(
+      operatingSystem: 'linux',
+      environment: {'HOME': temp.path, 'PATH': ''},
+      temporaryDirectory: temp.path,
+      workingDirectory: temp.path,
+      executable: p.join(temp.path, 'raccoon_simulator'),
+    );
+    runtime = RuntimeViewModel(
+      host: host,
+      settings: MemorySettingsStore(),
+      doctor: RuntimeDoctor(host: host),
+      fixer: RuntimeFixer(host: host),
+      onLine: (_) {},
+      locateSdk: (_) => null,
+      locateCheckout: (_) => null,
+    );
   });
 
   tearDown(() {
@@ -38,6 +57,7 @@ void main() {
     run.dispose();
     log.dispose();
     viewer.dispose();
+    runtime.dispose();
     temp.deleteSync(recursive: true);
   });
 
@@ -55,10 +75,14 @@ void main() {
       ChangeNotifierProvider.value(value: project),
       ChangeNotifierProvider.value(value: run),
       ChangeNotifierProvider.value(value: viewer),
+      ChangeNotifierProvider.value(value: runtime),
     ],
-    child: const Directionality(
-      textDirection: TextDirection.ltr,
-      child: ViewerFrame(),
+    child: FluffyTheme(
+      data: SimulatorTheme.data,
+      child: const Directionality(
+        textDirection: TextDirection.ltr,
+        child: ViewerFrame(),
+      ),
     ),
   );
 
@@ -76,6 +100,14 @@ void main() {
   testWidgets('waits for an app to run from an editor', (tester) async {
     await tester.pumpWidget(app());
     expect(find.text('Waiting for your app'), findsOneWidget);
+  });
+
+  testWidgets('points at setup when a check fails', (tester) async {
+    runtime.refresh();
+    await tester.pumpWidget(app());
+
+    expect(find.text('Raccoon needs setup'), findsOneWidget);
+    expect(find.text('Open settings'), findsOneWidget);
   });
 
   testWidgets('shows an app run from an editor without a project', (

@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:simulator/design/design.dart';
 import 'package:simulator/features/runtime/models/models.dart';
 import 'package:simulator/ui/widgets/widgets.dart';
+import 'package:sofluffy_ui/sofluffy_ui.dart';
 
 /// One runtime check: status, what was found, and its fix button.
 class CheckRow extends StatelessWidget {
@@ -22,46 +23,49 @@ class CheckRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final typography = context.fluffyTheme.typography;
     final color = switch (check.status) {
       CheckStatus.ok => Palette.ok,
       CheckStatus.warning => Palette.warning,
       CheckStatus.missing => Palette.error,
     };
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: Spacing.d4),
+      padding: EdgeInsets.symmetric(vertical: Spacing.d4),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.only(top: Spacing.d6, right: Spacing.d8),
+            padding: EdgeInsets.only(top: Spacing.d6, right: Spacing.d8),
             child: StatusDot(color: color),
           ),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(check.kind.label, style: Typography.body),
+                Text(check.kind.label, style: typography.base2),
                 Text(
                   check.detail,
-                  style: Typography.caption,
+                  style: typography.caption2.copyWith(
+                    color: Palette.textMuted,
+                  ),
                   maxLines: 3,
                   overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
           ),
-          if (check.fixLabel case final label?)
-            ToolButton(
+          if (check.fixLabel case final label?) ...[
+            Spacing.h8,
+            Button(
+              variant: ButtonVariant.ghost,
               label: switch (fixing) {
                 true => 'Working…',
                 false => label,
               },
-              tone: ButtonTone.primary,
-              onTap: switch (fixing) {
-                true => null,
-                false => onFix,
-              },
+              enable: !fixing && onFix != null,
+              onPressed: onFix,
             ),
+          ],
         ],
       ),
     );
