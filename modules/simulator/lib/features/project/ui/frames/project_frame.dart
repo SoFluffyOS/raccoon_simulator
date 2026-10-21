@@ -7,8 +7,9 @@ import 'package:simulator/features/project/view_models/view_models.dart';
 import 'package:simulator/features/run/view_models/view_models.dart';
 import 'package:simulator/ui/widgets/widgets.dart';
 
-/// The sidebar's project block: open a folder, or pick a recent one. Locked
-/// while a run is active.
+/// The sidebar's project block, for running an app from the simulator
+/// instead of an editor: open a folder, or pick a recent one. Locked while a
+/// run is active.
 class ProjectFrame extends StatelessWidget {
   const ProjectFrame({super.key});
 
@@ -43,7 +44,8 @@ class ProjectFrame extends StatelessWidget {
         children: [
           if (project == null && recent.isEmpty)
             const Text(
-              'Open the folder of a Flutter app to run it on Raccoon.',
+              'Optional: open a Flutter app here to run it from the '
+              'simulator. Runs from your editor show up on their own.',
               style: Typography.caption,
             ),
           if (error case final error?)

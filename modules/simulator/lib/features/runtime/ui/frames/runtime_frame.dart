@@ -113,11 +113,12 @@ class RuntimeFrame extends StatelessWidget {
             child: Text(
               switch (private) {
                 true =>
-                  'Other clients will not see runs. '
-                      'Sockets: $directory',
+                  'Runs started here get their own socket folder, so other '
+                      'clients cannot take them. Sockets: $directory',
                 false =>
-                  'Shared with other clients, which may connect first '
-                      '(a runner takes one client). Sockets: $directory',
+                  'Runs started here share the usual folder, where another '
+                      'client may connect first (a runner takes one client). '
+                      'Sockets: $directory',
               },
               style: Typography.caption,
             ),

@@ -73,9 +73,33 @@ void main() {
   RunnerConnection shownConnection(WidgetTester tester) =>
       tester.widget<RaccoonView>(find.byType(RaccoonView)).connection;
 
-  testWidgets('says to open a project first', (tester) async {
+  testWidgets('waits for an app to run from an editor', (tester) async {
     await tester.pumpWidget(app());
-    expect(find.text('No project'), findsOneWidget);
+    expect(find.text('Waiting for your app'), findsOneWidget);
+  });
+
+  testWidgets('shows an app run from an editor without a project', (
+    tester,
+  ) async {
+    late FakeRunner editorRun;
+    await tester.runAsync(() async {
+      editorRun = await FakeRunner.start(
+        p.join(temp.path, 'counter.sock'),
+        pid: 4,
+      );
+      sessions.follow([RunnerDiscovery(temp.path)]);
+      await until(() => sessions.session('counter') != null);
+    });
+    await tester.pumpWidget(app());
+
+    expect(shownConnection(tester), same(sessions.session('counter')?.client));
+
+    await tester.runAsync(() async {
+      await editorRun.stop();
+      await until(() => sessions.session('counter') == null);
+    });
+    await tester.pump();
+    expect(find.text('Waiting for your app'), findsOneWidget);
   });
 
   testWidgets('says to press Run while no runner serves the app', (
@@ -95,7 +119,7 @@ void main() {
       await tester.runAsync(() async {
         await openProject('hello');
         runners.add(await FakeRunner.start(socket, pid: 1));
-        sessions.follow(RunnerDiscovery(temp.path));
+        sessions.follow([RunnerDiscovery(temp.path)]);
         await until(() => sessions.session('hello')?.pid == 1);
       });
       await tester.pumpWidget(app());
@@ -129,7 +153,7 @@ void main() {
         p.join(temp.path, 'hello.sock'),
         refuse: true,
       );
-      sessions.follow(RunnerDiscovery(temp.path));
+      sessions.follow([RunnerDiscovery(temp.path)]);
       await until(() => sessions.isRefused('hello'));
     });
     await tester.pumpWidget(app());

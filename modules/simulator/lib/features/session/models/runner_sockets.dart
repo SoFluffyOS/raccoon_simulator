@@ -3,7 +3,8 @@ import 'package:raccoon_runtime/raccoon_runtime.dart';
 
 /// Where the runners this simulator starts put their sockets.
 ///
-/// Shared: the host's usual directory, where any other client looks
+/// Shared: the host's usual directory, where a `flutter run -d raccoon` from
+/// an editor or a terminal puts its runner, and where any other client looks
 /// too. Private: a directory of the simulator's own, reached by pointing
 /// the device helper's base directory (`XDG_RUNTIME_DIR` on Linux, `TMPDIR`
 /// on macOS) somewhere else for the `flutter run` it starts. A runner takes

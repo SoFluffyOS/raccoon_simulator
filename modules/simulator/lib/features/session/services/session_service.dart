@@ -11,8 +11,10 @@ typedef RunnerConnector = Future<RunnerClient> Function(
   UnixSocketEndpoint endpoint,
 );
 
-/// Follows the runners in one socket directory and keeps a client connected
-/// to each.
+/// Follows the runners in a few socket directories and keeps a client
+/// connected to each: the host's usual one, where a `flutter run -d raccoon`
+/// from any editor or terminal puts its runner, and the private one for runs
+/// the simulator starts.
 ///
 /// Sessions are keyed by app name, and callers look the live one up by name
 /// every time ([session]) instead of holding on to a [RunnerSession]: each
@@ -42,41 +44,93 @@ final class SessionService extends ChangeNotifier {
   final _refused = <String>{};
   final _freshSince = <String, DateTime>{};
   Timer? _freshPoll;
-  StreamSubscription<List<UnixSocketEndpoint>>? _watch;
-  RunnerDiscovery? _discovery;
-  var _endpoints = <UnixSocketEndpoint>[];
+  final _watches = <StreamSubscription<List<UnixSocketEndpoint>>>[];
+  var _discoveries = <RunnerDiscovery>[];
+  final _found = <String, List<UnixSocketEndpoint>>{};
   Future<void> _work = Future.value();
   var _generation = 0;
   var _disposed = false;
 
-  /// The directory being followed, once [follow] was called.
-  String? get directory => _discovery?.directory;
+  /// The directories being followed, in the order [follow] got them.
+  List<String> get directories => [
+    for (final discovery in _discoveries) discovery.directory,
+  ];
 
   List<RunnerSession> get sessions => List.unmodifiable(_sessions.values);
 
   /// The live session for [name], or null while there is none.
   RunnerSession? session(String name) => _sessions[name];
 
+  /// The session connected last, such as an app just run from an editor.
+  RunnerSession? get latest => switch (_sessions.isEmpty) {
+    true => null,
+    false => _sessions.values.last,
+  };
+
   /// Whether the runner for [name] turned this client away because another
   /// client, such as an IDE, is connected to it.
   bool isRefused(String name) => _refused.contains(name);
 
-  /// Follows the runners in [discovery]'s directory, dropping the sessions
-  /// of any directory followed before.
-  void follow(RunnerDiscovery discovery) {
-    if (_discovery?.directory == discovery.directory) return;
+  /// The app whose runner refused this client last, or null.
+  String? get refusedName => switch (_refused.isEmpty) {
+    true => null,
+    false => _refused.last,
+  };
+
+  /// The app the viewport shows: the simulator's own run while it has one,
+  /// else [project] when its runner is live, else the latest session (an app
+  /// run from an editor), else a refused runner, else [project].
+  String? shownApp({String? running, String? project}) {
+    if (running != null) return running;
+    if (project != null && _sessions.containsKey(project)) return project;
+    return latest?.name ?? refusedName ?? project;
+  }
+
+  /// Follows the runners in [discoveries]' directories, dropping the
+  /// sessions of the directories followed before. Following the same
+  /// directories again keeps the sessions.
+  void follow(List<RunnerDiscovery> discoveries) {
+    final unique = <String, RunnerDiscovery>{
+      for (final discovery in discoveries) discovery.directory: discovery,
+    };
+    if (_sameDirectories(unique.keys.toList())) return;
     _generation++;
-    unawaited(_watch?.cancel());
+    _cancelWatches();
     _closeAll();
-    _discovery = discovery;
+    _discoveries = unique.values.toList();
     final generation = _generation;
-    _watch = discovery.watch().listen(
-      (endpoints) => _enqueue(() => _sync(endpoints, generation)),
-      onError: (Object error, StackTrace stackTrace) =>
-          printError('runner discovery failed: $error', stackTrace),
-    );
+    for (final discovery in _discoveries) {
+      _watches.add(
+        discovery.watch().listen(
+          (endpoints) {
+            _found[discovery.directory] = endpoints;
+            unawaited(_enqueue(() => _sync(_allFound(), generation)));
+          },
+          onError: (Object error, StackTrace stackTrace) =>
+              printError('runner discovery failed: $error', stackTrace),
+        ),
+      );
+    }
     notifyListeners();
   }
+
+  bool _sameDirectories(List<String> next) {
+    final current = directories;
+    if (current.length != next.length) return false;
+    for (var i = 0; i < next.length; i++) {
+      if (current[i] != next[i]) return false;
+    }
+    return true;
+  }
+
+  List<UnixSocketEndpoint> _allFound() => [
+    for (final discovery in _discoveries) ...?_found[discovery.directory],
+  ];
+
+  /// Every runner socket present right now, listed afresh.
+  List<UnixSocketEndpoint> _listAll() => [
+    for (final discovery in _discoveries) ...discovery.list(),
+  ];
 
   /// Tries again to connect to every runner present, for a runner that was
   /// refused while another client held it.
@@ -84,7 +138,7 @@ final class SessionService extends ChangeNotifier {
     _refused.clear();
     notifyListeners();
     final generation = _generation;
-    return _enqueue(() => _sync(_endpoints, generation));
+    return _enqueue(() => _sync(_allFound(), generation));
   }
 
   /// Connects to [name]'s runner only through a socket created after
@@ -105,7 +159,7 @@ final class SessionService extends ChangeNotifier {
         if (session != null && !_isFresh(session.endpoint, since)) {
           await _close(name);
         }
-        await _sync(_discovery?.list() ?? _endpoints, generation);
+        await _sync(_listAll(), generation);
       }),
     );
     _freshPoll ??= Timer.periodic(freshPollInterval, (_) => _pollFresh());
@@ -129,9 +183,7 @@ final class SessionService extends ChangeNotifier {
       return;
     }
     final generation = _generation;
-    unawaited(
-      _enqueue(() => _sync(_discovery?.list() ?? _endpoints, generation)),
-    );
+    unawaited(_enqueue(() => _sync(_listAll(), generation)));
   }
 
   /// Whether [endpoint]'s socket file was made after [since], give or take
@@ -152,7 +204,6 @@ final class SessionService extends ChangeNotifier {
 
   Future<void> _sync(List<UnixSocketEndpoint> endpoints, int generation) async {
     if (generation != _generation || _disposed) return;
-    _endpoints = endpoints;
     final present = <String>{};
     for (final endpoint in endpoints) {
       final name = RunnerDiscovery.appNameOf(endpoint);
@@ -223,7 +274,7 @@ final class SessionService extends ChangeNotifier {
       Future<void>.delayed(reconnectDelay).then(
         (_) => _enqueue(() async {
           if (generation != _generation || _disposed) return;
-          await _sync(_discovery?.list() ?? const [], generation);
+          await _sync(_listAll(), generation);
         }),
       ),
     );
@@ -245,7 +296,14 @@ final class SessionService extends ChangeNotifier {
     _freshSince.clear();
     _freshPoll?.cancel();
     _freshPoll = null;
-    _endpoints = [];
+    _found.clear();
+  }
+
+  void _cancelWatches() {
+    for (final watch in _watches) {
+      unawaited(watch.cancel());
+    }
+    _watches.clear();
   }
 
   void _notify() {
@@ -257,7 +315,7 @@ final class SessionService extends ChangeNotifier {
   void dispose() {
     _disposed = true;
     _generation++;
-    unawaited(_watch?.cancel());
+    _cancelWatches();
     _closeAll();
     super.dispose();
   }

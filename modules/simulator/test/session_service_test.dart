@@ -41,7 +41,7 @@ void main() {
   test('connects to a runner and finds it by app name', () async {
     final runner = await FakeRunner.start(socket('hello'), pid: 11);
     addTearDown(runner.stop);
-    service.follow(RunnerDiscovery(temp.path));
+    service.follow([RunnerDiscovery(temp.path)]);
 
     await until(() => service.session('hello') != null);
 
@@ -56,7 +56,7 @@ void main() {
     'a runner restarted under the same name replaces the session',
     () async {
       final first = await FakeRunner.start(socket('hello'), pid: 1);
-      service.follow(RunnerDiscovery(temp.path));
+      service.follow([RunnerDiscovery(temp.path)]);
       await until(() => service.session('hello')?.pid == 1);
       final before = service.session('hello');
 
@@ -75,7 +75,7 @@ void main() {
   test('reconnects when a runner hangs up but its socket stays', () async {
     final runner = await FakeRunner.start(socket('hello'), pid: 5);
     addTearDown(runner.stop);
-    service.follow(RunnerDiscovery(temp.path));
+    service.follow([RunnerDiscovery(temp.path)]);
     await until(() => service.session('hello') != null);
     final before = service.session('hello');
 
@@ -90,7 +90,7 @@ void main() {
 
   test('a session ends when its runner goes away', () async {
     final runner = await FakeRunner.start(socket('hello'));
-    service.follow(RunnerDiscovery(temp.path));
+    service.follow([RunnerDiscovery(temp.path)]);
     await until(() => service.session('hello') != null);
 
     await runner.stop();
@@ -102,7 +102,7 @@ void main() {
   test('a runner held by another client is marked refused', () async {
     final runner = await FakeRunner.start(socket('hello'), refuse: true);
     addTearDown(runner.stop);
-    service.follow(RunnerDiscovery(temp.path));
+    service.follow([RunnerDiscovery(temp.path)]);
 
     await until(() => service.isRefused('hello'));
     expect(service.session('hello'), isNull);
@@ -111,7 +111,7 @@ void main() {
 
   test('retry connects once the other client let go', () async {
     final busy = await FakeRunner.start(socket('hello'), refuse: true);
-    service.follow(RunnerDiscovery(temp.path));
+    service.follow([RunnerDiscovery(temp.path)]);
     await until(() => service.isRefused('hello'));
 
     await busy.stop();
@@ -126,19 +126,99 @@ void main() {
   test('following another directory drops the old sessions', () async {
     final runner = await FakeRunner.start(socket('hello'));
     addTearDown(runner.stop);
-    service.follow(RunnerDiscovery(temp.path));
+    service.follow([RunnerDiscovery(temp.path)]);
     await until(() => service.session('hello') != null);
 
     final other = Directory(p.join(temp.path, 'private'))..createSync();
-    service.follow(RunnerDiscovery(other.path));
+    service.follow([RunnerDiscovery(other.path)]);
 
     expect(service.session('hello'), isNull);
-    expect(service.directory, other.path);
+    expect(service.directories, [other.path]);
+  });
+
+  test('follows an editor run and the simulator run side by side', () async {
+    final private = Directory(p.join(temp.path, 'private'))..createSync();
+    final editorRun = await FakeRunner.start(socket('counter'), pid: 7);
+    final ownRun = await FakeRunner.start(
+      p.join(private.path, 'hello.sock'),
+      pid: 8,
+    );
+    addTearDown(() async {
+      await editorRun.stop();
+      await ownRun.stop();
+    });
+
+    service.follow([RunnerDiscovery(private.path), RunnerDiscovery(temp.path)]);
+
+    await until(
+      () =>
+          service.session('counter') != null &&
+          service.session('hello') != null,
+    );
+    expect(service.directories, [private.path, temp.path]);
+    expect(service.session('counter')?.pid, 7);
+    expect(service.session('hello')?.pid, 8);
+  });
+
+  test('following the same directories again keeps the sessions', () async {
+    final runner = await FakeRunner.start(socket('hello'));
+    addTearDown(runner.stop);
+    service.follow([RunnerDiscovery(temp.path)]);
+    await until(() => service.session('hello') != null);
+    final before = service.session('hello');
+
+    service.follow([RunnerDiscovery(temp.path), RunnerDiscovery(temp.path)]);
+
+    expect(service.session('hello'), same(before));
+    expect(service.directories, [temp.path]);
+  });
+
+  test('the latest session is the app connected last', () async {
+    final first = await FakeRunner.start(socket('first'), pid: 1);
+    addTearDown(first.stop);
+    service.follow([RunnerDiscovery(temp.path)]);
+    await until(() => service.latest?.name == 'first');
+
+    final second = await FakeRunner.start(socket('second'), pid: 2);
+    addTearDown(second.stop);
+
+    await until(() => service.latest?.name == 'second');
+    await second.stop();
+    await until(() => service.latest?.name == 'first');
+  });
+
+  test('shownApp prefers the run, then the project, then the latest', () async {
+    expect(service.shownApp(), isNull);
+    expect(service.shownApp(project: 'hello'), 'hello');
+
+    final editorRun = await FakeRunner.start(socket('counter'));
+    addTearDown(editorRun.stop);
+    service.follow([RunnerDiscovery(temp.path)]);
+    await until(() => service.latest != null);
+
+    expect(service.shownApp(), 'counter');
+    expect(service.shownApp(project: 'hello'), 'counter');
+    expect(service.shownApp(running: 'hello', project: 'hello'), 'hello');
+
+    final projectRun = await FakeRunner.start(socket('hello'));
+    addTearDown(projectRun.stop);
+    await until(() => service.session('hello') != null);
+
+    expect(service.shownApp(project: 'hello'), 'hello');
+  });
+
+  test('a refused editor run is shown so its message appears', () async {
+    final busy = await FakeRunner.start(socket('counter'), refuse: true);
+    addTearDown(busy.stop);
+    service.follow([RunnerDiscovery(temp.path)]);
+
+    await until(() => service.refusedName == 'counter');
+    expect(service.shownApp(), 'counter');
   });
 
   test('expectFresh skips a stale runner until a new socket appears', () async {
     final stale = await FakeRunner.start(socket('hello'), pid: 1);
-    service.follow(RunnerDiscovery(temp.path));
+    service.follow([RunnerDiscovery(temp.path)]);
     await until(() => service.session('hello')?.pid == 1);
 
     await Future<void>.delayed(const Duration(milliseconds: 1100));

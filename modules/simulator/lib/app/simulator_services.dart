@@ -26,6 +26,14 @@ final class SimulatorServices {
     DirectoryPicker? pickDirectory,
   }) {
     final log = RunLog();
+    // Where a `flutter run -d raccoon` from any editor puts its runner; always
+    // followed, next to the folder of the simulator's own runs.
+    final shared = RunnerSockets.forHost(
+      operatingSystem: host.operatingSystem,
+      environment: host.environment,
+      temporaryDirectory: host.temporaryDirectory,
+      private: false,
+    );
     final sessions = SessionService(
       connect: RunnerClient.connect,
       onConnected: const IdePlatformChannels().register,
@@ -36,7 +44,8 @@ final class SimulatorServices {
       doctor: RuntimeDoctor(host: host),
       fixer: RuntimeFixer(host: host),
       onLine: (line) => log.add(LogSource.setup, line),
-      onSocketsChanged: (sockets) => sessions.follow(sockets.discovery),
+      onSocketsChanged: (sockets) =>
+          sessions.follow([sockets.discovery, shared.discovery]),
     );
     final run = RunViewModel(log: log, start: startFlutter);
     final project = ProjectViewModel(

@@ -21,9 +21,10 @@ final class SimulatorController {
   /// Why Run is unavailable, or null when it can start.
   String? get runBlocker {
     if (run.isActive) return 'Already running';
-    if (project.project == null) return 'Open a Flutter project first';
     if (runtime.sdk == null) return 'No Flutter SDK found';
+    if (runtime.settingUp) return 'Setting up the runtime';
     if (!runtime.isReady) return 'Fix the runtime setup first';
+    if (project.project == null) return 'Open a Flutter project first';
     return null;
   }
 

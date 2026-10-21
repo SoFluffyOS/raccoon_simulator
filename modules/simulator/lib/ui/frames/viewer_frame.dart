@@ -3,8 +3,10 @@ import 'package:provider/provider.dart';
 import 'package:simulator/design/design.dart';
 import 'package:simulator/features/features.dart';
 
-/// The viewport: the live session of the project's app at the chosen size,
-/// or what stands in its way.
+/// The viewport: the shown app's live session at the chosen size, or what
+/// stands in its way. The shown app is the simulator's own run, else the
+/// project's app, else the app run last from an editor, see
+/// [SessionService.shownApp].
 ///
 /// It looks the session up by app name on every change rather than holding
 /// one, so a runner that comes back under the same name after a stop or a
@@ -20,7 +22,9 @@ class ViewerFrame extends StatelessWidget {
     final projectName = context.select<ProjectViewModel, String?>(
       (viewModel) => viewModel.project?.appName,
     );
-    final name = runName ?? projectName;
+    final name = context.select<SessionService, String?>(
+      (service) => service.shownApp(running: runName, project: projectName),
+    );
     final session = context.select<SessionService, RunnerSession?>(
       (service) => switch (name) {
         final name? => service.session(name),
@@ -45,8 +49,9 @@ class ViewerFrame extends StatelessWidget {
     final preset = context.select<ViewerViewModel, SizePreset>(
       (viewModel) => viewModel.preset,
     );
+    // The simulator's run folder comes first, see SimulatorServices.
     final directory = context.select<SessionService, String?>(
-      (service) => service.directory,
+      (service) => service.directories.firstOrNull,
     );
     return ColoredBox(
       color: Palette.viewport,
@@ -77,8 +82,10 @@ class ViewerFrame extends StatelessWidget {
   }) {
     if (name == null) {
       return const ViewerMessage(
-        title: 'No project',
-        detail: 'Open a Flutter project from the sidebar, then press Run.',
+        title: 'Waiting for your app',
+        detail:
+            'Pick Raccoon in your editor\'s device list and run, or run '
+            'flutter run -d raccoon in your project. The app shows up here.',
       );
     }
     if (session case final session?) {
@@ -90,7 +97,7 @@ class ViewerFrame extends StatelessWidget {
         detail:
             'Another client, such as an IDE, is connected to '
             "$name's runner, and a runner serves one client at a time. Close "
-            'it there, or turn on private runner sockets and run again.',
+            'it there, then retry.',
         isError: true,
         actionLabel: 'Retry',
         onAction: context.read<SessionService>().retry,
@@ -99,7 +106,9 @@ class ViewerFrame extends StatelessWidget {
     return switch (phase) {
       RunPhase.idle => ViewerMessage(
         title: name,
-        detail: error ?? 'Press Run to start it on the Raccoon runtime.',
+        detail:
+            error ??
+            'Press Run, or run it on the Raccoon device from your editor.',
         isError: error != null,
       ),
       RunPhase.starting => ViewerMessage(

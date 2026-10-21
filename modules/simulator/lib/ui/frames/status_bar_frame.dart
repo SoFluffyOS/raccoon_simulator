@@ -24,8 +24,14 @@ class StatusBarFrame extends StatelessWidget {
     final restart = context.select<RunViewModel, RestartResult?>(
       (viewModel) => viewModel.lastRestart,
     );
-    final name = context.select<RunViewModel, String?>(
+    final runName = context.select<RunViewModel, String?>(
       (viewModel) => viewModel.appName,
+    );
+    final projectName = context.select<ProjectViewModel, String?>(
+      (viewModel) => viewModel.project?.appName,
+    );
+    final name = context.select<SessionService, String?>(
+      (service) => service.shownApp(running: runName, project: projectName),
     );
     final pid = context.select<SessionService, int?>(
       (service) => switch (name) {
@@ -36,12 +42,22 @@ class StatusBarFrame extends StatelessWidget {
     final private = context.select<RuntimeViewModel, bool>(
       (viewModel) => viewModel.privateSockets,
     );
+    final ready = context.select<RuntimeViewModel, bool>(
+      (viewModel) => viewModel.isReady,
+    );
     context
       ..select<ProjectViewModel, bool>((viewModel) => viewModel.project != null)
-      ..select<RuntimeViewModel, bool>((viewModel) => viewModel.isReady);
+      ..select<RuntimeViewModel, bool>((viewModel) => viewModel.settingUp);
     final blocker = context.read<SimulatorController>().runBlocker;
     final (color, label) = switch (phase) {
-      RunPhase.idle => (Palette.textFaint, blocker ?? 'Ready'),
+      RunPhase.idle => switch ((pid, ready)) {
+        (_?, _) => (Palette.ok, 'Showing ${name ?? 'the app'}'),
+        (null, true) => (
+          Palette.textFaint,
+          'Ready: run your app on the Raccoon device',
+        ),
+        (null, false) => (Palette.textFaint, blocker ?? 'Ready'),
+      },
       RunPhase.starting => (Palette.warning, progress ?? 'Starting'),
       RunPhase.running => (Palette.ok, 'Running'),
       RunPhase.stopping => (Palette.warning, 'Stopping'),

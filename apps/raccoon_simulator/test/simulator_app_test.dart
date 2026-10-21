@@ -35,7 +35,7 @@ void main() {
     await tester.runAsync(() => Future<void>.delayed(Duration.zero));
     await tester.pump();
 
-    expect(find.text('No project'), findsOneWidget);
+    expect(find.text('Waiting for your app'), findsOneWidget);
     expect(find.text('Run'), findsOneWidget);
     expect(services.controller.runBlocker, isNotNull);
     expect(find.text('Set up'), findsOneWidget);
