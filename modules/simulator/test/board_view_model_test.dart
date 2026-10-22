@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:raccoon_view/raccoon_view.dart';
 import 'package:simulator/features/features.dart';
 import 'package:simulator/services/services.dart';
 
@@ -33,7 +34,10 @@ void main() {
     expect(told, 1);
 
     board.resize('a', const Size(10, 500));
-    expect(board.frameFor('a').size, const Size(BoardFrame.minSide, 500));
+    expect(
+      board.frameFor('a').size,
+      const Size(RaccoonBoardFrame.minSide, 500),
+    );
     expect(told, 2);
 
     board.move('nobody', Offset.zero);

@@ -1,8 +1,10 @@
 import 'package:flutter/widgets.dart';
 import 'package:provider/provider.dart';
+import 'package:raccoon_view/raccoon_view.dart';
 import 'package:simulator/design/design.dart';
 import 'package:simulator/features/features.dart';
 import 'package:simulator/ui/dialogs/dialogs.dart';
+import 'package:sofluffy_ui/sofluffy_ui.dart';
 
 /// The viewport: the shown app's live session at the chosen size, or the
 /// board with every session on it when that is on, or what stands in the
@@ -170,19 +172,30 @@ class _Board extends StatelessWidget {
       (service) => service.sessions.map((session) => session.name).join(' '),
     );
     final sessions = context.read<SessionService>().sessions;
+    final caption = context.fluffyTheme.typography.caption2;
     return ColoredBox(
       color: Palette.viewport,
-      child: BoardView(
+      child: RaccoonBoard(
         key: ValueKey('board $names'),
         sessions: [
           for (final session in sessions)
-            BoardSession(
+            RaccoonBoardSession(
               name: session.name,
               connection: session.client,
               onClose: session.client.shutdown,
             ),
         ],
-        viewModel: context.read<BoardViewModel>(),
+        layout: context.read<BoardViewModel>(),
+        ink: Palette.textMuted,
+        titleStyle: caption,
+        empty: Text(
+          'Run the project on raccoon, raccoon-phone, raccoon-tablet '
+          'or raccoon-desktop from your editor: each shows up here.',
+          style: context.fluffyTheme.typography.base2.copyWith(
+            color: Palette.textMuted,
+          ),
+          textAlign: TextAlign.center,
+        ),
       ),
     );
   }

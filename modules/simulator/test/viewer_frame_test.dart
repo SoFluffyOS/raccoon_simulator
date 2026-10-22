@@ -203,17 +203,17 @@ void main() {
     });
     await tester.pumpWidget(app());
     expect(find.byType(RaccoonView), findsOneWidget);
-    expect(find.byType(BoardView), findsNothing);
+    expect(find.byType(RaccoonBoard), findsNothing);
 
     viewer.toggleBoard();
     await tester.pump();
-    expect(find.byType(BoardView), findsOneWidget);
+    expect(find.byType(RaccoonBoard), findsOneWidget);
     expect(find.byType(RaccoonView), findsNWidgets(2));
     expect(find.textContaining('Raccoon Tablet · other'), findsOneWidget);
 
     viewer.toggleBoard();
     await tester.pump();
-    expect(find.byType(BoardView), findsNothing);
+    expect(find.byType(RaccoonBoard), findsNothing);
     expect(find.byType(RaccoonView), findsOneWidget);
 
     await tester.runAsync(() async {
