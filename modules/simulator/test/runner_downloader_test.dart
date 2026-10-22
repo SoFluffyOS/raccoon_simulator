@@ -109,7 +109,9 @@ void main() {
 
   test('skips the protocol package\'s own v tags', () async {
     server
-      ..addRelease('runner-v0.7.0', platforms: ['linux-x64'])
+      // The protocol package's release carries runner-like assets here on
+      // purpose: the tag alone must rule it out.
+      ..addRelease('v0.7.0', platforms: ['linux-x64'])
       ..addRelease('runner-v0.3.1', platforms: ['linux-x64']);
 
     final release = await downloader.find(pinned);
