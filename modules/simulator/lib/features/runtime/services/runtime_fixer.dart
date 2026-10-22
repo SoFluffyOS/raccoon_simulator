@@ -76,7 +76,15 @@ final class RuntimeFixer {
         );
       case FixKind.register || FixKind.useThisRunner:
         final paths = _require(runner, 'a runner');
-        devices.upsert(CustomDeviceConfig(deviceHelper: paths.deviceHelper));
+        // Every device: the first, a second run, and the sized ones.
+        for (final device in RaccoonDevice.all) {
+          devices.upsert(
+            CustomDeviceConfig.forDevice(
+              device,
+              deviceHelper: paths.deviceHelper,
+            ),
+          );
+        }
         onLine('Registered ${paths.deviceHelper} in ${devices.path}');
     }
   }

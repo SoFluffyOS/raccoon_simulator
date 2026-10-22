@@ -187,7 +187,13 @@ void main() {
     expect(runtime.runner, prebuilt.paths);
     expect(runtime.runEnvironment['RACCOON_RUNNER'], prebuilt.binary);
     expect(RunnerVersion.read(prebuilt.versionFile)?.text, '0.3.1');
-    expect(devices.ids(), ['raccoon']);
+    expect(devices.ids(), [
+      'raccoon',
+      'raccoon-2',
+      'raccoon-phone',
+      'raccoon-tablet',
+      'raccoon-desktop',
+    ]);
     expect(
       RuntimeDoctor(host: host, devices: devices).registeredHelper(),
       prebuilt.deviceHelper,
