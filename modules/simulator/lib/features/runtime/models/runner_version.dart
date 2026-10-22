@@ -1,6 +1,6 @@
 import 'dart:io';
 
-/// A runner version: the checkout's `native/raccoon_runner/VERSION`, a
+/// A runner version: the checkout's `raccoon/native/raccoon_runner/VERSION`, a
 /// downloaded runner's `VERSION`, or a release tag, like `0.3.0`,
 /// `0.3.0-pre.1` or `v0.3.1`. Versions with the same major and minor are
 /// compatible, so a checkout pinned at `0.3.0-pre.1` takes any `0.3.x`

@@ -39,7 +39,7 @@ Time to first frame of [Flutter Wonderous](https://github.com/gskinnerTeam/flutt
 - **7× faster than Chrome** on a warm run, **3× faster than a macOS build** from clean, and a **first run in 15 s instead of 5 minutes** against Android.
 - Linux: AMD Ryzen 9 7945HX, Flutter 3.47.7; Android is an API 35 x86_64 emulator with KVM. macOS: Apple M1 Pro, Flutter 3.47.5. Wonderous at `747b945` with a one-line first-frame probe; for Android its Gradle, Android Gradle plugin and Kotlin versions were raised to Flutter 3.47's minimums.
 - **Clean** runs `flutter clean` first. **Warm** doesn't. **First build** starts from an empty Gradle home for Android, so Gradle and every dependency download, and from an empty engine cache for Raccoon, so its 15 MB engine downloads; it depends on the network.
-- Reproduce with `native/raccoon_runner/tool/bench/`: `wonderous.sh` prepares the project, `first_frame.py` compares your desktop device with Raccoon (`--devices` for others, `--warm` to skip `flutter clean`).
+- Reproduce with `raccoon/native/raccoon_runner/tool/bench/`: `wonderous.sh` prepares the project, `first_frame.py` compares your desktop device with Raccoon (`--devices` for others, `--warm` to skip `flutter clean`).
 
 Raccoon speeds up the inner loop: write, save, see. It doesn't replace testing on a real device or in a browser.
 
@@ -69,7 +69,7 @@ flutter run -d raccoon         # or pick Raccoon in your editor
 
 ## Prebuilt binaries
 
-**Download** in Settings fetches the runner release that matches this checkout (the same major and minor as `native/raccoon_runner/VERSION`) from [raccoon_runner's releases](https://github.com/SoFluffyOS/raccoon_runner/releases) and unpacks it, binary and device helper, into `~/.local/share/raccoon_simulator/runner` (under `$XDG_DATA_HOME` when set). The Raccoon device then points at that helper. **Build** stays for when there is no release for your host or no network; setup tries Download first, and a build in `native/raccoon_runner/build` always wins over a download. The download carries no quarantine attribute on macOS; an archive you fetch with a browser needs `xattr -d com.apple.quarantine raccoon_runner` before it runs.
+**Download** in Settings fetches the runner release that matches this checkout (the same major and minor as `raccoon/native/raccoon_runner/VERSION`) from [raccoon_runner's releases](https://github.com/SoFluffyOS/raccoon_runner/releases) and unpacks it, binary and device helper, into `~/.local/share/raccoon_simulator/runner` (under `$XDG_DATA_HOME` when set). The Raccoon device then points at that helper. **Build** stays for when there is no release for your host or no network; setup tries Download first, and a build in `native/raccoon_runner/build` always wins over a download. The download carries no quarantine attribute on macOS; an archive you fetch with a browser needs `xattr -d com.apple.quarantine raccoon_runner` before it runs.
 
 ## Run from the simulator
 

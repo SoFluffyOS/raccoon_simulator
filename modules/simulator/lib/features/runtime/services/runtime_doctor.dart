@@ -100,7 +100,8 @@ final class RuntimeDoctor {
         kind: CheckKind.runner,
         status: CheckStatus.missing,
         detail:
-            'native/raccoon_runner not found. Run from the repository, or '
+            'raccoon/native/raccoon_runner not found. Run from the repository, '
+            'or '
             'set ${HostLocator.rootVariable}.',
       );
     }

@@ -21,6 +21,6 @@ dev_dependencies:
     sdk: flutter
   path: ^1.9.1
   raccoon:
-    path: ../../pub_packages/raccoon
+    path: ../../raccoon/packages/raccoon
   raccoon_view:
-    path: ../../packages/raccoon_view
+    path: ../../raccoon/packages/raccoon_view

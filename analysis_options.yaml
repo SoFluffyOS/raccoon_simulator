@@ -2,6 +2,8 @@ include: package:lints/recommended.yaml
 
 analyzer:
   exclude:
+    # The Raccoon family submodule has its own CI and resolves on its own.
+    - raccoon/**
     - build/**
     - pub_packages/**
     - native/**

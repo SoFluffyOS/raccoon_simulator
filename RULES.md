@@ -29,7 +29,7 @@ dart format apps modules && flutter analyze   # never format the submodules
 |-----------|---------|
 | `apps/raccoon_simulator/` | Entry point (`main.dart`), macOS and Linux runners, end-to-end test |
 | `modules/simulator/` | Features, window UI, design tokens, tests |
-| `pub_packages/raccoon/`, `packages/raccoon_runtime/`, `packages/raccoon_view/`, `native/raccoon_runner/` | Raccoon submodules, read-only here |
+| `raccoon/` | The Raccoon family (protocol, runtime, view, runner), one submodule, read-only here |
 
 `modules/simulator/lib/`:
 

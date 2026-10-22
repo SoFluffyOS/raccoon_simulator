@@ -15,7 +15,7 @@ case "$(uname -s)" in
   *) desktop=linux ;;
 esac
 
-project="${1:-$PWD/native/raccoon_runner/example/hello}"
+project="${1:-$PWD/raccoon/native/raccoon_runner/example/hello}"
 defines=(--dart-define="RACCOON_E2E_PROJECT=$project")
 if [ -n "${2:-}" ]; then
   defines+=(--dart-define="RACCOON_E2E_SCREENSHOTS=$2")

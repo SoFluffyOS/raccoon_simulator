@@ -1,6 +1,7 @@
 /// Where runs find the runner: a folder with the binary and
 /// `tool/raccoon-device`, the custom device helper. The checkout's
-/// `native/raccoon_runner` keeps the binary under `build/`; the simulator's
+/// `raccoon/native/raccoon_runner` keeps the binary under `build/`; the
+/// simulator's
 /// runtime directory, where a downloaded release unpacks, at its root.
 final class RunnerPaths {
   const RunnerPaths({

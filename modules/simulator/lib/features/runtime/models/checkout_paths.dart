@@ -6,12 +6,13 @@ import 'package:simulator/features/runtime/models/runner_paths.dart';
 final class CheckoutPaths {
   const CheckoutPaths(this.root, {this.isWindows = false});
 
-  /// The repository root, which holds `native/raccoon_runner`.
+  /// The repository root, which holds `raccoon/native/raccoon_runner`.
   final String root;
 
   final bool isWindows;
 
-  String get runnerDirectory => p.join(root, 'native', 'raccoon_runner');
+  String get runnerDirectory =>
+      p.join(root, 'raccoon', 'native', 'raccoon_runner');
 
   String get runnerBinary => p.join(
     runnerDirectory,

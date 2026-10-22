@@ -17,11 +17,11 @@ dependencies:
   path: ^1.9.1
   provider: ^6.1.2
   raccoon:
-    path: ../../pub_packages/raccoon
+    path: ../../raccoon/packages/raccoon
   raccoon_runtime:
-    path: ../../packages/raccoon_runtime
+    path: ../../raccoon/packages/raccoon_runtime
   raccoon_view:
-    path: ../../packages/raccoon_view
+    path: ../../raccoon/packages/raccoon_view
   shared_preferences: ^2.3.0
   sofluffy_ui: ^1.0.0
   yaml: ^3.1.2

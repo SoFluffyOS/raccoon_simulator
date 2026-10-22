@@ -1,16 +1,4 @@
-[submodule "pub_packages/raccoon"]
-	path = pub_packages/raccoon
+[submodule "raccoon"]
+	path = raccoon
 	url = https://github.com/SoFluffyOS/raccoon.git
-	branch = main
-[submodule "packages/raccoon_runtime"]
-	path = packages/raccoon_runtime
-	url = https://github.com/SoFluffyOS/raccoon_runtime.git
-	branch = main
-[submodule "packages/raccoon_view"]
-	path = packages/raccoon_view
-	url = https://github.com/SoFluffyOS/raccoon_view.git
-	branch = main
-[submodule "native/raccoon_runner"]
-	path = native/raccoon_runner
-	url = https://github.com/SoFluffyOS/raccoon_runner.git
 	branch = main
