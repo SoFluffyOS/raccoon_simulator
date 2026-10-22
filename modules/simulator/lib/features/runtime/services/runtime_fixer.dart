@@ -76,8 +76,12 @@ final class RuntimeFixer {
         );
       case FixKind.register || FixKind.useThisRunner:
         final paths = _require(runner, 'a runner');
-        // Every device: the first, a second run, and the sized ones.
-        for (final device in RaccoonDevice.all) {
+        // One device to start with, and every other Raccoon device already
+        // there follows the helper; the user adds and removes the rest.
+        final present = devices.ids().where((id) => id.startsWith('raccoon'));
+        for (final id in {'raccoon', ...present}) {
+          final device = deviceFor(id);
+          if (device == null) continue;
           devices.upsert(
             CustomDeviceConfig.forDevice(
               device,
@@ -88,6 +92,31 @@ final class RuntimeFixer {
         onLine('Registered ${paths.deviceHelper} in ${devices.path}');
     }
   }
+
+  /// The device behind a registered id: a built-in one by its key, else one
+  /// of the user's own at the size its entry carries.
+  RaccoonDevice? deviceFor(String id) {
+    final key = switch (id) {
+      'raccoon' => '1',
+      _ when id.startsWith('raccoon-') => id.substring(8),
+      _ => null,
+    };
+    if (key == null) return null;
+    return RaccoonDevice.forKey(key) ??
+        RaccoonDevice.custom(
+          key,
+          size: devices.sizeOf(id),
+          label: devices.labelOf(id),
+        );
+  }
+
+  /// Adds [device] to the tool's list, next to the registered helper.
+  void addDevice(RaccoonDevice device, RunnerPaths runner) => devices.upsert(
+    CustomDeviceConfig.forDevice(device, deviceHelper: runner.deviceHelper),
+  );
+
+  /// Takes a device out of the tool's list; a run on it goes on.
+  bool removeDevice(String id) => devices.remove(id);
 
   /// The tool and the device helper both resolve `flutter` from the PATH, so
   /// the chosen SDK goes first.

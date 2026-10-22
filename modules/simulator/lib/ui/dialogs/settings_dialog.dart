@@ -47,6 +47,7 @@ class SettingsDialog extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             RuntimeSettingsFrame(),
+            DeviceSettingsFrame(),
             ProjectSettingsFrame(),
             LogSettingsFrame(),
           ],

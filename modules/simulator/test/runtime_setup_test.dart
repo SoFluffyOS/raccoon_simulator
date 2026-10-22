@@ -187,19 +187,38 @@ void main() {
     expect(runtime.runner, prebuilt.paths);
     expect(runtime.runEnvironment['RACCOON_RUNNER'], prebuilt.binary);
     expect(RunnerVersion.read(prebuilt.versionFile)?.text, '0.3.1');
-    expect(devices.ids(), [
-      'raccoon',
-      'raccoon-2',
-      'raccoon-phone',
-      'raccoon-tablet',
-      'raccoon-desktop',
-    ]);
+    expect(devices.ids(), ['raccoon']);
     expect(
       RuntimeDoctor(host: host, devices: devices).registeredHelper(),
       prebuilt.deviceHelper,
     );
     expect(store.installed(revision), isNotNull);
     expect(lines, contains('Download: done'));
+  });
+
+  test('devices go in and out of the picker, and setup keeps them', () async {
+    releases.addRelease('runner-v0.3.1', platforms: ['linux-x64']);
+    final runtime = viewModel(commands());
+    await runtime.setUp();
+    expect(runtime.deviceIds, ['raccoon']);
+    expect(runtime.hasDevice(RaccoonDevice.tablet), isFalse);
+
+    expect(await runtime.setDevice(RaccoonDevice.tablet, on: true), isTrue);
+    expect(runtime.deviceIds, ['raccoon', 'raccoon-tablet']);
+    expect(devices.sizeOf('raccoon-tablet'), '820x1180@2');
+    final ipad = RaccoonDevice.custom('ipad', size: '1024x1366@2');
+    expect(await runtime.setDevice(ipad, on: true), isTrue);
+    expect(runtime.customDevices.map((d) => d.id), ['raccoon-ipad']);
+    expect(runtime.customDevices.single.sizeArgument, '1024x1366@2');
+
+    // Setting up again re-points what is there and adds nothing.
+    await runtime.setUp();
+    expect(runtime.deviceIds, ['raccoon', 'raccoon-tablet', 'raccoon-ipad']);
+    expect(devices.sizeOf('raccoon-ipad'), '1024x1366@2');
+
+    expect(await runtime.setDevice(RaccoonDevice.tablet, on: false), isTrue);
+    expect(await runtime.setDevice(RaccoonDevice.tablet, on: false), isFalse);
+    expect(runtime.deviceIds, ['raccoon', 'raccoon-ipad']);
   });
 
   test('builds the runner when no release fits', () async {

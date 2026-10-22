@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:raccoon_runtime/raccoon_runtime.dart';
 import 'package:simulator/features/runtime/models/models.dart';
 import 'package:simulator/features/runtime/services/services.dart';
 import 'package:simulator/features/session/session.dart';
@@ -100,7 +101,42 @@ final class RuntimeViewModel extends ChangeNotifier {
     _checks = List.unmodifiable(
       _doctor.check(sdk: _sdk, checkout: _checkout, runner: _runner),
     );
+    _deviceIds = List.unmodifiable(
+      _fixer.devices.ids().where((id) => id.startsWith('raccoon')),
+    );
     _notify();
+  }
+
+  List<String> _deviceIds = const [];
+
+  /// The Raccoon devices the Flutter tool lists, `raccoon` first.
+  List<String> get deviceIds => _deviceIds;
+
+  /// The devices of the user's own in the tool's list, neither `raccoon`
+  /// nor a built-in one.
+  List<RaccoonDevice> get customDevices => [
+    for (final id in _deviceIds)
+      if (id != 'raccoon' && RaccoonDevice.forKey(id.substring(8)) == null)
+        ?_fixer.deviceFor(id),
+  ];
+
+  /// Whether [device] is in the tool's list.
+  bool hasDevice(RaccoonDevice device) => _deviceIds.contains(device.id);
+
+  /// Puts [device] in the tool's list, or takes it out. Needs a registered
+  /// runner to point the device at; false without one.
+  Future<bool> setDevice(RaccoonDevice device, {required bool on}) async {
+    if (on) {
+      final runner = _runner;
+      if (runner == null) return false;
+      _fixer.addDevice(device, runner);
+      _onLine('Added ${device.id} (${device.label})');
+    } else {
+      if (!_fixer.removeDevice(device.id)) return false;
+      _onLine('Removed ${device.id}');
+    }
+    refresh();
+    return true;
   }
 
   /// Applies [kind] and checks again. True when the fix worked.
