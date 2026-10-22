@@ -197,6 +197,17 @@ void main() {
     expect(doctor.registeredHelper(), other.path);
   });
 
+  test('the helper is read past the shell that starts it on Windows', () {
+    devices.upsert(
+      CustomDeviceConfig(
+        deviceHelper: checkout.deviceHelper,
+        launcher: const [r'C:\Program Files\Git\bin\bash.exe'],
+      ),
+    );
+    expect(doctor.registeredHelper(), checkout.deviceHelper);
+    expect(check()[CheckKind.device]?.status, CheckStatus.ok);
+  });
+
   test('a device pointing at a missing helper fails', () {
     devices.upsert(CustomDeviceConfig(deviceHelper: '/gone/raccoon-device'));
     expect(check()[CheckKind.device]?.status, CheckStatus.missing);

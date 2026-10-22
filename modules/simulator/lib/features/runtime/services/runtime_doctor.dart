@@ -246,7 +246,8 @@ final class RuntimeDoctor {
     }
   }
 
-  /// The helper the "raccoon" entry runs, or null without an entry.
+  /// The helper the "raccoon" entry runs, or null without an entry: the
+  /// word before `ping`, past the `bash.exe` that starts it on Windows.
   String? registeredHelper() {
     final file = File(devices.path);
     if (!file.existsSync()) return null;
@@ -260,7 +261,7 @@ final class RuntimeDoctor {
       for (final entry in entries) {
         if (entry case {
           'id': deviceId,
-          'ping': [final String helper, ...],
+          'ping': [..., final String helper, 'ping'],
         }) {
           return helper;
         }
