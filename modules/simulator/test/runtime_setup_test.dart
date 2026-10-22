@@ -165,7 +165,7 @@ void main() {
 
   test('sets up a fresh machine with the downloaded runner', () async {
     releases.addRelease(
-      'v0.3.1',
+      'runner-v0.3.1',
       platforms: ['linux-x64', 'macos-arm64'],
       archive: fakeRunnerArchive(version: '0.3.1'),
     );
@@ -203,7 +203,7 @@ void main() {
   });
 
   test('builds the runner when no release fits', () async {
-    releases.addRelease('v0.2.0', platforms: ['linux-x64']);
+    releases.addRelease('runner-v0.2.0', platforms: ['linux-x64']);
     final fake = commands();
     final runtime = viewModel(fake);
 
@@ -281,7 +281,7 @@ void main() {
     touch(prebuilt.binary);
     touch(prebuilt.versionFile, '0.2.0\n');
     releases.addRelease(
-      'v0.3.0',
+      'runner-v0.3.0',
       platforms: ['linux-x64'],
       archive: fakeRunnerArchive(version: '0.3.0'),
     );

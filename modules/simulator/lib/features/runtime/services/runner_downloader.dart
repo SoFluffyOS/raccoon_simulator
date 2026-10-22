@@ -33,10 +33,11 @@ final class RunnerRelease {
   final bool prerelease;
 }
 
-/// Fetches the prebuilt runner from the runner repository's GitHub releases:
-/// the newest release compatible with the checkout's pinned version that
-/// carries an archive for this host, unpacked into the simulator's runtime
-/// directory. The archives come from the runner's `tool/package.sh`:
+/// Fetches the prebuilt runner from the Raccoon repository's GitHub
+/// releases, the ones tagged `runner-v*` (plain `v*` tags are the protocol
+/// package's): the newest release compatible with the checkout's pinned
+/// version that carries an archive for this host, unpacked into the
+/// simulator's runtime directory. The archives come from the runner's `tool/package.sh`:
 /// `raccoon_runner-<version>-<platform>.tar.gz`, flat, the binary at the
 /// root. Nothing here sets a quarantine attribute, so the binary runs on
 /// macOS as it is.
@@ -45,11 +46,13 @@ final class RunnerDownloader {
     : releases = releases ?? defaultReleases,
       platform = platform ?? hostPlatform;
 
-  /// The runner repository's releases, newest first, prereleases included.
+  /// The Raccoon repository's releases, newest first, prereleases included.
   static final defaultReleases = Uri.parse(
-    'https://api.github.com/repos/SoFluffyOS/raccoon_runner/releases'
-    '?per_page=30',
+    'https://api.github.com/repos/SoFluffyOS/raccoon/releases?per_page=30',
   );
+
+  /// What a runner release's tag starts with.
+  static const tagPrefix = 'runner-v';
 
   /// The archives' platform name for the host this process runs on.
   static final String hostPlatform = platformFor(
@@ -98,7 +101,7 @@ final class RunnerDownloader {
     for (final entry in decoded) {
       if (entry is! Map || entry['draft'] == true) continue;
       final tag = entry['tag_name'];
-      if (tag is! String) continue;
+      if (tag is! String || !tag.startsWith(tagPrefix)) continue;
       final candidate = RunnerVersion.parse(tag);
       if (candidate == null || !candidate.isCompatibleWith(version)) continue;
       final url = _assetUrl(entry['assets'], assetName(candidate, platform));

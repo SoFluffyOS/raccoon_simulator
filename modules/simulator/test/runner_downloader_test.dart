@@ -38,6 +38,8 @@ void main() {
       expect(version?.text, '0.3.0-pre.1');
       expect(version?.series, '0.3.x');
       expect(RunnerVersion.parse('v1.2.3')?.text, '1.2.3');
+      expect(RunnerVersion.parse('runner-v1.2.3')?.text, '1.2.3');
+      expect(RunnerVersion.parse('runner-v1.2.3')?.series, '1.2.x');
       expect(RunnerVersion.parse(' 0.3.1\n')?.text, '0.3.1');
       expect(RunnerVersion.parse('latest'), isNull);
       expect(RunnerVersion.parse('0.3'), isNull);
@@ -83,16 +85,16 @@ void main() {
     'picks the newest compatible release with an archive for the host',
     () async {
       server
-        ..addRelease('v0.4.0', platforms: ['linux-x64'])
-        ..addRelease('v0.3.3', platforms: ['linux-x64'], draft: true)
-        ..addRelease('v0.3.2', platforms: ['macos-arm64'])
+        ..addRelease('runner-v0.4.0', platforms: ['linux-x64'])
+        ..addRelease('runner-v0.3.3', platforms: ['linux-x64'], draft: true)
+        ..addRelease('runner-v0.3.2', platforms: ['macos-arm64'])
         ..addRelease(
-          'v0.3.1',
+          'runner-v0.3.1',
           platforms: ['linux-x64', 'macos-arm64'],
           prerelease: true,
         )
-        ..addRelease('v0.3.0', platforms: ['linux-x64'])
-        ..addRelease('v0.2.0', platforms: ['linux-x64']);
+        ..addRelease('runner-v0.3.0', platforms: ['linux-x64'])
+        ..addRelease('runner-v0.2.0', platforms: ['linux-x64']);
 
       final release = await downloader.find(pinned);
 
@@ -105,17 +107,31 @@ void main() {
     },
   );
 
+  test('skips the protocol package\'s own v tags', () async {
+    server
+      ..addRelease('runner-v0.7.0', platforms: ['linux-x64'])
+      ..addRelease('runner-v0.3.1', platforms: ['linux-x64']);
+
+    final release = await downloader.find(pinned);
+
+    expect(release?.version, RunnerVersion.parse('0.3.1'));
+    expect(
+      release?.asset.path,
+      endsWith('raccoon_runner-0.3.1-linux-x64.tar.gz'),
+    );
+  });
+
   test('finds nothing without a compatible release for the host', () async {
     server
-      ..addRelease('v0.4.0', platforms: ['linux-x64'])
-      ..addRelease('v0.3.0', platforms: ['macos-arm64']);
+      ..addRelease('runner-v0.4.0', platforms: ['linux-x64'])
+      ..addRelease('runner-v0.3.0', platforms: ['macos-arm64']);
 
     expect(await downloader.find(pinned), isNull);
   });
 
   test('unpacks the archive into the runtime directory, executable', () async {
     server.addRelease(
-      'v0.3.1',
+      'runner-v0.3.1',
       platforms: ['linux-x64'],
       archive: fakeRunnerArchive(version: '0.3.1'),
     );
@@ -147,7 +163,7 @@ void main() {
 
   test('leaves an entry that would escape the directory out', () async {
     server.addRelease(
-      'v0.3.1',
+      'runner-v0.3.1',
       platforms: ['linux-x64'],
       archive: fakeRunnerArchive(entries: {'../escaped': 'no'}),
     );
@@ -162,7 +178,7 @@ void main() {
 
   test('refuses an archive without the binary', () async {
     server.addRelease(
-      'v0.3.1',
+      'runner-v0.3.1',
       platforms: ['linux-x64'],
       archive: fakeRunnerArchive(withBinary: false),
     );
@@ -184,7 +200,11 @@ void main() {
   });
 
   test('refuses something that is not an archive', () async {
-    server.addRelease('v0.3.1', platforms: ['linux-x64'], archive: [1, 2, 3]);
+    server.addRelease(
+      'runner-v0.3.1',
+      platforms: ['linux-x64'],
+      archive: [1, 2, 3],
+    );
     final release =
         await downloader.find(pinned) ?? (throw StateError('no release'));
 
@@ -201,7 +221,7 @@ void main() {
   });
 
   test('reports a missing archive', () async {
-    server.addRelease('v0.3.1', platforms: ['linux-x64']);
+    server.addRelease('runner-v0.3.1', platforms: ['linux-x64']);
     final release =
         await downloader.find(pinned) ?? (throw StateError('no release'));
 

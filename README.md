@@ -69,7 +69,7 @@ flutter run -d raccoon         # or pick Raccoon in your editor
 
 ## Prebuilt binaries
 
-**Download** in Settings fetches the runner release that matches this checkout (the same major and minor as `raccoon/native/raccoon_runner/VERSION`) from [raccoon_runner's releases](https://github.com/SoFluffyOS/raccoon_runner/releases) and unpacks it, binary and device helper, into `~/.local/share/raccoon_simulator/runner` (under `$XDG_DATA_HOME` when set). The Raccoon device then points at that helper. **Build** stays for when there is no release for your host or no network; setup tries Download first, and a build in `native/raccoon_runner/build` always wins over a download. The download carries no quarantine attribute on macOS; an archive you fetch with a browser needs `xattr -d com.apple.quarantine raccoon_runner` before it runs.
+**Download** in Settings fetches the runner release that matches this checkout (the same major and minor as `raccoon/native/raccoon_runner/VERSION`) from the [Raccoon repository's releases](https://github.com/SoFluffyOS/raccoon/releases) (the `runner-v*` tags) and unpacks it, binary and device helper, into `~/.local/share/raccoon_simulator/runner` (under `$XDG_DATA_HOME` when set). The Raccoon device then points at that helper. **Build** stays for when there is no release for your host or no network; setup tries Download first, and a build in `native/raccoon_runner/build` always wins over a download. The download carries no quarantine attribute on macOS; an archive you fetch with a browser needs `xattr -d com.apple.quarantine raccoon_runner` before it runs.
 
 ## Run from the simulator
 

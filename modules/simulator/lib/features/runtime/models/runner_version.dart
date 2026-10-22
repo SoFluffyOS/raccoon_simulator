@@ -2,15 +2,16 @@ import 'dart:io';
 
 /// A runner version: the checkout's `raccoon/native/raccoon_runner/VERSION`, a
 /// downloaded runner's `VERSION`, or a release tag, like `0.3.0`,
-/// `0.3.0-pre.1` or `v0.3.1`. Versions with the same major and minor are
+/// `0.3.0-pre.1`, `v0.3.1` or `runner-v0.3.1`. Versions with the same major and minor are
 /// compatible, so a checkout pinned at `0.3.0-pre.1` takes any `0.3.x`
 /// release.
 final class RunnerVersion {
   const RunnerVersion._(this.text, this.major, this.minor);
 
   static final _pattern = RegExp(
-    r'^v?(\d+)\.(\d+)\.(\d+)(?:[-+][0-9A-Za-z.+-]*)?$',
+    r'^(?:runner-)?v?(\d+)\.(\d+)\.(\d+)(?:[-+][0-9A-Za-z.+-]*)?$',
   );
+  static final _prefix = RegExp(r'^(?:runner-)?v');
 
   /// Parses [text], or returns null when it is not a semantic version.
   static RunnerVersion? parse(String text) {
@@ -20,11 +21,7 @@ final class RunnerVersion {
     final major = int.tryParse(match[1] ?? '');
     final minor = int.tryParse(match[2] ?? '');
     if (major == null || minor == null) return null;
-    final body = switch (trimmed.startsWith('v')) {
-      true => trimmed.substring(1),
-      false => trimmed,
-    };
-    return RunnerVersion._(body, major, minor);
+    return RunnerVersion._(trimmed.replaceFirst(_prefix, ''), major, minor);
   }
 
   /// The version in [file], or null when the file is missing or holds
@@ -35,7 +32,7 @@ final class RunnerVersion {
     return parse(versionFile.readAsStringSync());
   }
 
-  /// The version without a leading `v`.
+  /// The version without a leading `v` or `runner-v`.
   final String text;
 
   final int major;

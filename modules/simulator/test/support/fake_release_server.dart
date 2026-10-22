@@ -24,7 +24,7 @@ final class FakeReleaseServer {
 
   Uri get releasesUri => Uri.parse('http://127.0.0.1:${_server.port}/releases');
 
-  /// Adds a release tagged [tag] (`v0.3.1`) with an archive for each of
+  /// Adds a release tagged [tag] (`runner-v0.3.1`) with an archive for each of
   /// [platforms], newest first: call it for the newest release first.
   /// [archive] stands in for every platform's archive; without one, the
   /// asset is listed but its download answers 404.
@@ -35,7 +35,7 @@ final class FakeReleaseServer {
     bool prerelease = false,
     bool draft = false,
   }) {
-    final version = tag.replaceFirst('v', '');
+    final version = tag.replaceFirst(RegExp(r'^(?:runner-)?v'), '');
     _releases.add({
       'tag_name': tag,
       'draft': draft,
