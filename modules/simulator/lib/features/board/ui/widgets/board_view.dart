@@ -155,20 +155,18 @@ class _BoardViewState extends State<BoardView> {
     final frame = widget.viewModel.frameFor(session.name);
     final typography = context.fluffyTheme.typography;
     // Each step starts from where the frame is now, not where this build
-    // put it: steps can land between frames.
+    // put it: steps can land between frames. The deltas come in board
+    // units already: the detectors sit under the zoom.
     void moveBy(Offset delta) {
       final current = widget.viewModel.frameFor(session.name);
-      widget.viewModel.move(session.name, current.position + delta / _zoom);
+      widget.viewModel.move(session.name, current.position + delta);
     }
 
     void resizeBy(Offset delta) {
       final current = widget.viewModel.frameFor(session.name);
       widget.viewModel.resize(
         session.name,
-        Size(
-          current.size.width + delta.dx / _zoom,
-          current.size.height + delta.dy / _zoom,
-        ),
+        Size(current.size.width + delta.dx, current.size.height + delta.dy),
       );
     }
 

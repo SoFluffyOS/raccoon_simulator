@@ -142,6 +142,38 @@ void main() {
     expect(closed, 1);
   });
 
+  testWidgets('zoomed out, a frame still follows the pointer', (tester) async {
+    await pumpBoard(tester, ['counter']);
+    final pointer = TestPointer(1, PointerDeviceKind.mouse);
+    pointer.hover(const Offset(10, 10));
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    for (var i = 0; i < 5; i++) {
+      await tester.sendEventToBinding(pointer.scroll(const Offset(0, 100)));
+    }
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pump();
+    final shown = tester.getRect(find.byType(RaccoonView));
+    expect(shown.width, lessThan(390 * 0.7));
+
+    await tester.drag(
+      find.byKey(BoardView.titleKey('counter')),
+      const Offset(100, 50),
+    );
+    await tester.pump();
+    final moved = tester.getTopLeft(find.byType(RaccoonView));
+    expect(moved.dx, closeTo(shown.left + 100, 0.5));
+    expect(moved.dy, closeTo(shown.top + 50, 0.5));
+
+    await tester.drag(
+      find.byKey(BoardView.resizeKey('counter')),
+      const Offset(60, 30),
+    );
+    await tester.pump();
+    final grown = tester.getRect(find.byType(RaccoonView));
+    expect(grown.width, closeTo(shown.width + 60, 0.5));
+    expect(grown.height, closeTo(shown.height + 30, 0.5));
+  });
+
   testWidgets('scrolling pans the board', (tester) async {
     await pumpBoard(tester, ['counter']);
     final before = tester.getTopLeft(find.byType(RaccoonView));
