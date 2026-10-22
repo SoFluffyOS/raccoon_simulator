@@ -4,8 +4,9 @@ import 'package:simulator/design/design.dart';
 import 'package:simulator/features/features.dart';
 import 'package:simulator/ui/dialogs/dialogs.dart';
 
-/// The viewport: the shown app's live session at the chosen size, or what
-/// stands in its way. The shown app is the simulator's own run, else the
+/// The viewport: the shown app's live session at the chosen size, or the
+/// board with every session on it when that is on, or what stands in the
+/// shown app's way. The shown app is the simulator's own run, else the
 /// project's app, else the app run last from an editor, see
 /// [SessionService.shownApp]. With no app, it shows setup's progress.
 ///
@@ -17,6 +18,10 @@ class ViewerFrame extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final boardOn = context.select<ViewerViewModel, bool>(
+      (viewModel) => viewModel.boardOn,
+    );
+    if (boardOn) return const _Board();
     final runName = context.select<RunViewModel, String?>(
       (viewModel) => viewModel.appName,
     );
@@ -150,6 +155,35 @@ class ViewerFrame extends StatelessWidget {
       detail:
           'Pick Raccoon in your editor\'s device list and run, or run '
           'flutter run -d raccoon in your project. The app shows up here.',
+    );
+  }
+}
+
+/// Every session on the board. It rebuilds when the set of names changes;
+/// a session that comes back under its name keeps its frame.
+class _Board extends StatelessWidget {
+  const _Board();
+
+  @override
+  Widget build(BuildContext context) {
+    final names = context.select<SessionService, String>(
+      (service) => service.sessions.map((session) => session.name).join(' '),
+    );
+    final sessions = context.read<SessionService>().sessions;
+    return ColoredBox(
+      color: Palette.viewport,
+      child: BoardView(
+        key: ValueKey('board $names'),
+        sessions: [
+          for (final session in sessions)
+            BoardSession(
+              name: session.name,
+              connection: session.client,
+              onClose: session.client.shutdown,
+            ),
+        ],
+        viewModel: context.read<BoardViewModel>(),
+      ),
     );
   }
 }

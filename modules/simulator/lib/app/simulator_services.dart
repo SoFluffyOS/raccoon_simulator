@@ -16,6 +16,7 @@ final class SimulatorServices {
     required this.runtime,
     required this.project,
     required this.viewer,
+    required this.board,
     required this.controller,
     required this.chrome,
   });
@@ -66,6 +67,7 @@ final class SimulatorServices {
       runtime: runtime,
       project: project,
       viewer: ViewerViewModel(),
+      board: BoardViewModel(settings: settings),
       chrome: WindowChrome(toolbarIsTitleBar: host.operatingSystem == 'macos'),
       controller: SimulatorController(
         project: project,
@@ -82,6 +84,7 @@ final class SimulatorServices {
   final RuntimeViewModel runtime;
   final ProjectViewModel project;
   final ViewerViewModel viewer;
+  final BoardViewModel board;
   final SimulatorController controller;
   final WindowChrome chrome;
 
@@ -91,8 +94,12 @@ final class SimulatorServices {
     await runtime.init();
     if (options.setUp) unawaited(runtime.setUp());
     await project.init(initialDirectory: options.project);
+    await board.load(project.project?.directory);
+    project.addListener(_projectChanged);
     if (options.run) unawaited(controller.startWhenReady());
   }
+
+  void _projectChanged() => unawaited(board.load(project.project?.directory));
 
   /// Shuts the run's runner down before killing the tool, which would
   /// leave the runner behind.
@@ -103,6 +110,7 @@ final class SimulatorServices {
     runtime.dispose();
     project.dispose();
     viewer.dispose();
+    board.dispose();
     chrome.dispose();
     log.dispose();
   }

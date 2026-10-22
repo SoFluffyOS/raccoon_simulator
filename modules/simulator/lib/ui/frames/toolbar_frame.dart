@@ -23,6 +23,7 @@ class ToolbarFrame extends StatelessWidget {
   static const reloadKey = ValueKey('toolbar-reload');
   static const restartKey = ValueKey('toolbar-restart');
   static const settingsKey = ValueKey('toolbar-settings');
+  static const boardKey = ValueKey('toolbar-board');
 
   @override
   Widget build(BuildContext context) {
@@ -176,6 +177,15 @@ class ToolbarFrame extends StatelessWidget {
             const ToolbarSeparator(),
           ],
           const PresetBarFrame(),
+          IconToolButton(
+            key: boardKey,
+            icon: LucideIcons.layoutDashboard,
+            tooltip: 'Board: every running device on one canvas',
+            selected: context.select<ViewerViewModel, bool>(
+              (viewModel) => viewModel.boardOn,
+            ),
+            onTap: context.read<ViewerViewModel>().toggleBoard,
+          ),
           const ToolbarSeparator(),
           IconToolButton(
             key: settingsKey,

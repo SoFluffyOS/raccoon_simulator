@@ -93,6 +93,7 @@ class _SimulatorAppState extends State<SimulatorApp> {
         ChangeNotifierProvider.value(value: _services.runtime),
         ChangeNotifierProvider.value(value: _services.project),
         ChangeNotifierProvider.value(value: _services.viewer),
+        ChangeNotifierProvider.value(value: _services.board),
         ChangeNotifierProvider.value(value: _screenSize),
         ChangeNotifierProvider.value(value: _services.chrome),
         Provider<SimulatorController>.value(value: _services.controller),

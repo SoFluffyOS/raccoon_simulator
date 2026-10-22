@@ -22,6 +22,7 @@ void main() {
   late RunLog log;
   late RunViewModel run;
   late ViewerViewModel viewer;
+  late BoardViewModel board;
   late RuntimeViewModel runtime;
 
   setUp(() {
@@ -34,6 +35,7 @@ void main() {
     log = RunLog();
     run = RunViewModel(log: log);
     viewer = ViewerViewModel();
+    board = BoardViewModel(settings: MemorySettingsStore());
     final host = HostInfo(
       operatingSystem: 'linux',
       environment: {'HOME': temp.path, 'PATH': ''},
@@ -58,6 +60,7 @@ void main() {
     run.dispose();
     log.dispose();
     viewer.dispose();
+    board.dispose();
     runtime.dispose();
     temp.deleteSync(recursive: true);
   });
@@ -76,6 +79,7 @@ void main() {
       ChangeNotifierProvider.value(value: project),
       ChangeNotifierProvider.value(value: run),
       ChangeNotifierProvider.value(value: viewer),
+      ChangeNotifierProvider.value(value: board),
       ChangeNotifierProvider.value(value: runtime),
     ],
     child: FluffyTheme(
@@ -183,6 +187,41 @@ void main() {
       });
     },
   );
+
+  testWidgets('the board shows every session, not just the shown app', (
+    tester,
+  ) async {
+    final runners = <FakeRunner>[];
+    await tester.runAsync(() async {
+      await openProject('hello');
+      runners.add(await FakeRunner.start(p.join(temp.path, 'hello.sock')));
+      runners.add(
+        await FakeRunner.start(p.join(temp.path, 'other@tablet.sock')),
+      );
+      sessions.follow([watched(temp.path)]);
+      await until(() => sessions.sessions.length == 2);
+    });
+    await tester.pumpWidget(app());
+    expect(find.byType(RaccoonView), findsOneWidget);
+    expect(find.byType(BoardView), findsNothing);
+
+    viewer.toggleBoard();
+    await tester.pump();
+    expect(find.byType(BoardView), findsOneWidget);
+    expect(find.byType(RaccoonView), findsNWidgets(2));
+    expect(find.textContaining('Raccoon Tablet · other'), findsOneWidget);
+
+    viewer.toggleBoard();
+    await tester.pump();
+    expect(find.byType(BoardView), findsNothing);
+    expect(find.byType(RaccoonView), findsOneWidget);
+
+    await tester.runAsync(() async {
+      for (final runner in runners) {
+        await runner.stop();
+      }
+    });
+  });
 
   testWidgets('explains a runner another client holds', (tester) async {
     late FakeRunner busy;
