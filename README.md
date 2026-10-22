@@ -63,7 +63,7 @@ flutter run -d raccoon         # or pick Raccoon in your editor
 
 ## Requirements
 
-- Flutter 3.47+
+- Flutter 3.27 and up for the apps you run (tested with 3.27.4 and 3.47.7); native plugin loading is tested on 3.47
 - To build the runner yourself, when no prebuilt release fits your host or you want your own build: a C++17 compiler, CMake, Ninja, `curl` and `unzip`
 - macOS: `xcode-select --install` and `brew install cmake ninja`, for that build
 
