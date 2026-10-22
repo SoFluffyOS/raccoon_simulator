@@ -1,13 +1,16 @@
 // Drives the real simulator window against the real runtime: opens a project
 // (the runner's example/hello by default), runs it on Raccoon, taps its box
-// through the viewport and checks the runner's next frames turn it green,
-// hot reloads, hot restarts (the box is red again), answers the app's
-// clipboard read over the platform channel (purple), switches to the phone
-// preset, and stops.
+// through the viewport and checks the app turns it green, hot reloads, hot
+// restarts (the box is red again), answers the app's clipboard read over
+// the platform channel (purple), switches to the phone preset, and stops.
+// The box's colour is read from the runner's frame when it carries pixels,
+// else from the window, where a GPU buffer frame shows through the host's
+// texture.
 //
 //   flutter test integration_test/hello_e2e_test.dart -d <linux or macos> \
 //     [--dart-define=RACCOON_E2E_PROJECT=<folder of a hello-like app>] \
 //     [--dart-define=RACCOON_E2E_SCREENSHOTS=<folder for PNGs>]
+import 'dart:async';
 import 'dart:io';
 import 'dart:ui' as ui;
 
@@ -56,7 +59,8 @@ void main() {
     _log = services.log;
     final name = services.project.project?.appName ?? 'hello';
     rc.Frame? frame() => services.sessions.session(name)?.client.latestFrame;
-    _lastCentre = () => _centre(frame());
+    Future<(int, int, int)?> centre() => _appCentre(tester, frame());
+    _lastCentre = centre;
 
     await _pumpUntil(
       tester,
@@ -64,21 +68,19 @@ void main() {
       'the app running with a frame',
       timeout: const Duration(minutes: 3),
     );
-    await _pumpUntil(
-      tester,
-      () => _centre(frame()) == _red,
-      'the red box',
-    );
+    await _pumpUntil(tester, () async => await centre() == _red, 'the red box');
     expect(find.byType(RaccoonView), findsOneWidget);
     _report('launch ${services.run.launchTime?.inMilliseconds} ms');
+    _report('frame ${_kindOf(frame())}');
     await _screenshot(tester, '1-running');
 
     await tester.tap(find.byType(RaccoonView));
     await _pumpUntil(
       tester,
-      () => _centre(frame()) == _green,
+      () async => await centre() == _green,
       'the box to turn green after a tap',
     );
+    _report('frame ${_kindOf(frame())}');
     await _screenshot(tester, '2-tapped');
 
     await tester.tap(find.byKey(ToolbarFrame.reloadKey));
@@ -88,7 +90,7 @@ void main() {
       'the hot reload',
     );
     expect(services.run.lastRestart?.succeeded, isTrue);
-    expect(_centre(frame()), _green, reason: 'a reload keeps state');
+    expect(await centre(), _green, reason: 'a reload keeps state');
     _report(
       'hot reload ${services.run.lastRestart?.duration.inMilliseconds} ms',
     );
@@ -102,7 +104,7 @@ void main() {
     expect(services.run.lastRestart?.succeeded, isTrue);
     await _pumpUntil(
       tester,
-      () => _centre(frame()) == _red,
+      () async => await centre() == _red,
       'a restart to reset the box to red',
     );
     _report(
@@ -127,7 +129,7 @@ void main() {
     await tester.tap(find.byType(RaccoonView));
     await _pumpUntil(
       tester,
-      () => _centre(frame()) == _purple,
+      () async => await centre() == _purple,
       'the box to turn purple once the app read the clipboard',
     );
     expect(served, greaterThan(0));
@@ -157,19 +159,19 @@ void main() {
 RunLog? _log;
 
 /// The app's centre colour now, printed when a wait times out.
-(int, int, int)? Function()? _lastCentre;
+Future<(int, int, int)?> Function()? _lastCentre;
 
 Future<void> _pumpUntil(
   WidgetTester tester,
-  bool Function() condition,
+  FutureOr<bool> Function() condition,
   String what, {
   Duration timeout = const Duration(seconds: 20),
 }) async {
   final deadline = DateTime.now().add(timeout);
-  while (!condition()) {
+  while (!await condition()) {
     if (DateTime.now().isAfter(deadline)) {
       debugPrint(_log?.text);
-      debugPrint('[e2e] centre colour: ${_lastCentre?.call()}');
+      debugPrint('[e2e] centre colour: ${await _lastCentre?.call()}');
       fail('timed out waiting for $what');
     }
     await tester.pump(const Duration(milliseconds: 50));
@@ -177,6 +179,34 @@ Future<void> _pumpUntil(
   }
   // Let the widgets catch up with the state the condition saw.
   await tester.pump();
+}
+
+/// The app's centre colour as (red, green, blue): from [frame] when it
+/// carries pixels, else from the window, where a GPU buffer frame shows
+/// through the host's texture and nowhere else.
+Future<(int, int, int)?> _appCentre(
+  WidgetTester tester,
+  rc.Frame? frame,
+) async {
+  if (frame == null) return null;
+  if (frame.pixels.isNotEmpty) return _centre(frame);
+  final boundary = tester.renderObject<RenderRepaintBoundary>(
+    find.byKey(SimulatorPage.windowKey),
+  );
+  final centre =
+      tester.getCenter(find.byType(RaccoonView)) -
+      boundary.localToGlobal(Offset.zero);
+  final image = await boundary.toImage();
+  final bytes = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+  final width = image.width;
+  image.dispose();
+  if (bytes == null) return null;
+  final offset = (centre.dy.round() * width + centre.dx.round()) * 4;
+  return (
+    bytes.getUint8(offset),
+    bytes.getUint8(offset + 1),
+    bytes.getUint8(offset + 2),
+  );
 }
 
 /// The colour at the frame's centre as (red, green, blue).
@@ -195,6 +225,16 @@ Future<void> _pumpUntil(
 }
 
 void _report(String line) => debugPrint('[e2e] $line');
+
+/// How the frame came: as a GPU buffer, from a shared buffer, or inline.
+String _kindOf(rc.Frame? frame) => switch (frame) {
+  null => 'none',
+  rc.Frame(inGpuBuffer: true, gpuGeneration: final generation) =>
+    '${frame.sequence} in GPU buffer ${frame.bufferIndex} of $generation',
+  rc.Frame(inSharedBuffer: true) =>
+    '${frame.sequence} in shared buffer ${frame.bufferIndex}',
+  _ => '${frame.sequence} inline',
+};
 
 Future<void> _screenshot(WidgetTester tester, String name) async {
   if (_screenshots.isEmpty) return;
