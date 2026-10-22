@@ -294,4 +294,32 @@ void main() {
     expect(runtime.runner, prebuilt.paths);
     expect(runtime.checks[1].status, CheckStatus.ok);
   });
+
+  test(
+    'one Download replaces a downloaded runner older than the pin',
+    () async {
+      touch(checkout.runnerVersionFile, '0.3.0-pre.2\n');
+      touch(prebuilt.binary);
+      touch(prebuilt.versionFile, '0.3.0-pre.1\n');
+      releases
+        ..addRelease(
+          'runner-v0.3.0-pre.2',
+          platforms: ['linux-x64'],
+          archive: fakeRunnerArchive(version: '0.3.0-pre.2'),
+        )
+        ..addRelease('runner-v0.3.0-pre.1', platforms: ['linux-x64']);
+      final runtime = viewModel(commands());
+      expect(runtime.runner, isNot(prebuilt.paths));
+      expect(
+        runtime.checks[1].detail,
+        startsWith('Downloaded 0.3.0-pre.1 is older than 0.3.0-pre.2'),
+      );
+
+      expect(await runtime.fix(FixKind.download), isTrue);
+
+      expect(RunnerVersion.read(prebuilt.versionFile)?.text, '0.3.0-pre.2');
+      expect(runtime.runner, prebuilt.paths);
+      expect(runtime.checks[1].status, CheckStatus.ok);
+    },
+  );
 }

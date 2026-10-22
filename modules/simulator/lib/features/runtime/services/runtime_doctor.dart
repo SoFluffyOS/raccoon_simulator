@@ -42,13 +42,15 @@ final class RuntimeDoctor {
     return checkout.runner;
   }
 
-  /// The downloaded runner's version when it is installed and compatible
-  /// with [checkout]'s pinned version, else null.
+  /// The downloaded runner's version when it is installed, compatible
+  /// with [checkout]'s pinned version and no older than it, else null: an
+  /// older one lacks what the pin brought.
   RunnerVersion? compatibleDownload(CheckoutPaths checkout) {
     final installed = downloaded();
     final pinned = RunnerVersion.read(checkout.runnerVersionFile);
     if (installed == null || pinned == null) return null;
     if (!installed.isCompatibleWith(pinned)) return null;
+    if (installed.isOlderThan(pinned)) return null;
     return installed;
   }
 
@@ -125,6 +127,8 @@ final class RuntimeDoctor {
       final tools => 'Build needs ${tools.join(' and ')} on PATH',
     };
     final stale = switch (downloaded()) {
+      final version? when pinned != null && version.isCompatibleWith(pinned) =>
+        'Downloaded $version is older than $pinned. ',
       final version? when pinned != null =>
         'Downloaded $version is not ${pinned.series}. ',
       _ => '',

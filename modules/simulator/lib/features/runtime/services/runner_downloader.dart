@@ -36,7 +36,7 @@ final class RunnerRelease {
 /// Fetches the prebuilt runner from the Raccoon repository's GitHub
 /// releases, the ones tagged `runner-v*` (plain `v*` tags are the protocol
 /// package's): the newest release compatible with the checkout's pinned
-/// version that carries an archive for this host, unpacked into the
+/// version, and no older, that carries an archive for this host, unpacked into the
 /// simulator's runtime directory. The archives come from the runner's `tool/package.sh`:
 /// `raccoon_runner-<version>-<platform>.tar.gz`, flat, the binary at the
 /// root. Nothing here sets a quarantine attribute, so the binary runs on
@@ -84,8 +84,8 @@ final class RunnerDownloader {
   /// The archives' platform name this downloader serves, see [platformFor].
   final String platform;
 
-  /// The newest release compatible with [version] that has an archive for
-  /// [platform], or null when there is none. Throws [DownloadFailed] when
+  /// The newest release compatible with [version], and no older than it,
+  /// that has an archive for [platform], or null when there is none. Throws [DownloadFailed] when
   /// the list cannot be fetched or read.
   Future<RunnerRelease?> find(RunnerVersion version) async {
     final body = await _get(releases, accept: 'application/vnd.github+json');
@@ -104,6 +104,7 @@ final class RunnerDownloader {
       if (tag is! String || !tag.startsWith(tagPrefix)) continue;
       final candidate = RunnerVersion.parse(tag);
       if (candidate == null || !candidate.isCompatibleWith(version)) continue;
+      if (candidate.isOlderThan(version)) continue;
       final url = _assetUrl(entry['assets'], assetName(candidate, platform));
       if (url == null) continue;
       return RunnerRelease(

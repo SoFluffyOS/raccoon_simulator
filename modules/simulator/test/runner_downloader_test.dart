@@ -60,6 +60,34 @@ void main() {
       );
     });
 
+    test('orders prereleases, releases and patches', () {
+      final ordered = [
+        '0.2.9',
+        '0.3.0-pre',
+        '0.3.0-pre.1',
+        '0.3.0-pre.2',
+        '0.3.0-pre.10',
+        '0.3.0-pre.x',
+        '0.3.0-rc.1',
+        '0.3.0',
+        '0.3.1',
+        '1.0.0',
+      ].map((text) => RunnerVersion.parse(text) ?? pinned).toList();
+      for (var i = 0; i < ordered.length; i++) {
+        for (var j = 0; j < ordered.length; j++) {
+          expect(
+            ordered[i].isOlderThan(ordered[j]),
+            i < j,
+            reason: '${ordered[i]} before ${ordered[j]}',
+          );
+        }
+      }
+      expect(
+        pinned.isOlderThan(RunnerVersion.parse('0.3.0-pre.1+build') ?? pinned),
+        isFalse,
+      );
+    });
+
     test('reads a VERSION file', () {
       final file = File(p.join(temp.path, 'VERSION'))
         ..writeAsStringSync('0.3.2\n');
@@ -121,6 +149,13 @@ void main() {
       release?.asset.path,
       endsWith('raccoon_runner-0.3.1-linux-x64.tar.gz'),
     );
+  });
+
+  test('skips a release older than the pin', () async {
+    server.addRelease('runner-v0.3.0-pre.1', platforms: ['linux-x64']);
+    final newer = RunnerVersion.parse('0.3.0-pre.2') ?? pinned;
+
+    expect(await downloader.find(newer), isNull);
   });
 
   test('finds nothing without a compatible release for the host', () async {
