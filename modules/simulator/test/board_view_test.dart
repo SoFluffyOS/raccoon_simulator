@@ -174,6 +174,41 @@ void main() {
     expect(grown.height, closeTo(shown.height + 30, 0.5));
   });
 
+  testWidgets(
+    'a frame past the viewport, panned into view, still takes drags',
+    (
+      tester,
+    ) async {
+      await pumpBoard(tester, ['counter']);
+      board.move('counter', const Offset(3000, 48));
+      await tester.pump();
+      final pointer = TestPointer(1, PointerDeviceKind.mouse);
+      pointer.hover(const Offset(1000, 1000));
+      await tester.sendEventToBinding(pointer.scroll(const Offset(1500, 0)));
+      await tester.pump();
+      final shown = tester.getTopLeft(find.byType(RaccoonView));
+      expect(shown.dx, 1500);
+
+      await tester.drag(
+        find.byKey(BoardView.titleKey('counter')),
+        const Offset(-100, 20),
+      );
+      await tester.pump();
+      expect(board.frameFor('counter').position, const Offset(2900, 68));
+      expect(
+        tester.getTopLeft(find.byType(RaccoonView)),
+        shown + const Offset(-100, 20),
+      );
+
+      await tester.drag(
+        find.byKey(BoardView.resizeKey('counter')),
+        const Offset(30, 40),
+      );
+      await tester.pump();
+      expect(board.frameFor('counter').size, const Size(420, 884));
+    },
+  );
+
   testWidgets('scrolling pans the board', (tester) async {
     await pumpBoard(tester, ['counter']);
     final before = tester.getTopLeft(find.byType(RaccoonView));

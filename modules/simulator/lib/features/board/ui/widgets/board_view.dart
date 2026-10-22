@@ -43,6 +43,11 @@ class BoardView extends StatefulWidget {
   static const titleHeight = 28.0;
   static const handleSize = 16.0;
 
+  /// How far from the origin, in board units, a frame can sit and still be
+  /// hit. A box takes no hit outside its own bounds, so the frames' layer
+  /// spans this far each way instead of just the viewport.
+  static const reach = 100000.0;
+
   @override
   State<BoardView> createState() => _BoardViewState();
 }
@@ -122,16 +127,23 @@ class _BoardViewState extends State<BoardView> {
                 ),
               ),
             ),
-            Transform(
-              transform: Matrix4.identity()
-                ..translateByDouble(_pan.dx, _pan.dy, 0, 1)
-                ..scaleByDouble(_zoom, _zoom, 1, 1),
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  for (final session in widget.sessions)
-                    _frame(context, session),
-                ],
+            OverflowBox(
+              alignment: Alignment.topLeft,
+              minWidth: 2 * BoardView.reach,
+              maxWidth: 2 * BoardView.reach,
+              minHeight: 2 * BoardView.reach,
+              maxHeight: 2 * BoardView.reach,
+              child: Transform(
+                transform: Matrix4.identity()
+                  ..translateByDouble(_pan.dx, _pan.dy, 0, 1)
+                  ..scaleByDouble(_zoom, _zoom, 1, 1)
+                  ..translateByDouble(-BoardView.reach, -BoardView.reach, 0, 1),
+                child: Stack(
+                  children: [
+                    for (final session in widget.sessions)
+                      _frame(context, session),
+                  ],
+                ),
               ),
             ),
             if (widget.sessions.isEmpty)
@@ -171,8 +183,8 @@ class _BoardViewState extends State<BoardView> {
     }
 
     return Positioned(
-      left: frame.position.dx,
-      top: frame.position.dy - BoardView.titleHeight,
+      left: frame.position.dx + BoardView.reach,
+      top: frame.position.dy - BoardView.titleHeight + BoardView.reach,
       width: frame.size.width,
       height: frame.size.height + BoardView.titleHeight,
       child: Column(
