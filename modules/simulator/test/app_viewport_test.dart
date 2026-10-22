@@ -5,6 +5,8 @@ import 'package:simulator/features/viewer/viewer.dart';
 
 import 'support/fake_connection.dart';
 
+import 'package:sofluffy_ui/sofluffy_ui.dart';
+
 void main() {
   Future<FakeConnection> pumpViewport(
     WidgetTester tester,
@@ -17,9 +19,12 @@ void main() {
     addTearDown(tester.view.reset);
     final connection = FakeConnection();
     await tester.pumpWidget(
-      Directionality(
-        textDirection: TextDirection.ltr,
-        child: AppViewport(connection: connection, preset: preset),
+      FluffyTheme(
+        data: FluffyThemeData.fallback(),
+        child: Directionality(
+          textDirection: TextDirection.ltr,
+          child: AppViewport(connection: connection, preset: preset),
+        ),
       ),
     );
     return connection;

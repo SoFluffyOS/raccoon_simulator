@@ -31,24 +31,15 @@ class AppViewport extends StatelessWidget {
     );
     final size = preset.size;
     if (size == null) return screen;
-    return Padding(
+    // On a canvas: a dot grid, an edge, the size in a corner, so the space
+    // around a phone-sized app reads as a drawing board.
+    return RaccoonCanvas(
+      size: size,
+      pixelRatio: preset.pixelRatio,
+      ink: Palette.border,
+      labelStyle: context.fluffyTheme.typography.caption2,
       padding: EdgeInsets.all(Spacing.d16),
-      child: Center(
-        child: FittedBox(
-          fit: BoxFit.scaleDown,
-          child: DecoratedBox(
-            position: DecorationPosition.foreground,
-            decoration: BoxDecoration(
-              border: Border.all(color: Palette.border),
-            ),
-            child: SizedBox(
-              width: size.width,
-              height: size.height,
-              child: screen,
-            ),
-          ),
-        ),
-      ),
+      child: screen,
     );
   }
 }
