@@ -51,6 +51,13 @@ final class FakeRunner {
     );
   }
 
+  /// Sends [message] to every client, as the runner would.
+  void send(RunnerMessage message) {
+    for (final client in _clients) {
+      client.add(MessageFraming.frame(message.writeToBuffer()));
+    }
+  }
+
   /// Hangs up on its clients but keeps listening, like a runner replaced so
   /// quickly that its socket path never changes.
   void dropClients() {

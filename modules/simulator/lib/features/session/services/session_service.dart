@@ -41,6 +41,9 @@ final class SessionService extends ChangeNotifier {
   final Duration reconnectDelay;
 
   final _sessions = <String, RunnerSession>{};
+  // Each session's word on its start and on its plugins, followed so the
+  // viewport can tell an app that stopped before its first frame.
+  final _followed = <String, List<StreamSubscription<Object?>>>{};
   final _refused = <String>{};
   final _freshSince = <String, DateTime>{};
   Timer? _freshPoll;
@@ -60,6 +63,11 @@ final class SessionService extends ChangeNotifier {
 
   /// The live session for [name], or null while there is none.
   RunnerSession? session(String name) => _sessions[name];
+
+  /// Why [name]'s app stopped before its first frame, or null while it has
+  /// not, or has drawn; see [RunnerClient.startupFailure].
+  StartupFailure? startupFailure(String name) =>
+      _sessions[name]?.client.startupFailure;
 
   /// The session connected last, such as an app just run from an editor.
   RunnerSession? get latest => switch (_sessions.isEmpty) {
@@ -261,14 +269,30 @@ final class SessionService extends ChangeNotifier {
       client: client,
     );
     _sessions[name] = session;
+    _follow(name, client);
     printLog('connected to $name at ${endpoint.path}');
     unawaited(client.closed.then((_) => _onClientClosed(session, generation)));
     _notify();
   }
 
+  void _follow(String name, RunnerClient client) {
+    _unfollow(name);
+    _followed[name] = [
+      client.startupFailures.listen((_) => _notify()),
+      client.plugins.listen((_) => _notify()),
+    ];
+  }
+
+  void _unfollow(String name) {
+    for (final subscription in _followed.remove(name) ?? const []) {
+      unawaited(subscription.cancel());
+    }
+  }
+
   void _onClientClosed(RunnerSession session, int generation) {
     if (!identical(_sessions[session.name], session)) return;
     _sessions.remove(session.name);
+    _unfollow(session.name);
     _notify();
     unawaited(
       Future<void>.delayed(reconnectDelay).then(
@@ -283,11 +307,15 @@ final class SessionService extends ChangeNotifier {
   Future<void> _close(String name) async {
     final session = _sessions.remove(name);
     if (session == null) return;
+    _unfollow(name);
     await session.client.close();
     _notify();
   }
 
   void _closeAll() {
+    for (final name in _followed.keys.toList()) {
+      _unfollow(name);
+    }
     for (final session in _sessions.values) {
       unawaited(session.client.close());
     }

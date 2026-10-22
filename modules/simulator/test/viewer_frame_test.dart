@@ -4,10 +4,11 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
+import 'package:raccoon/raccoon.dart';
 import 'package:raccoon_runtime/raccoon_runtime.dart';
 import 'package:raccoon_view/raccoon_view.dart';
 import 'package:simulator/design/design.dart';
-import 'package:simulator/features/features.dart';
+import 'package:simulator/features/features.dart' hide LogLine;
 import 'package:simulator/services/services.dart';
 import 'package:simulator/ui/ui.dart';
 import 'package:sofluffy_ui/sofluffy_ui.dart';
@@ -28,7 +29,10 @@ void main() {
   setUp(() {
     temp = Directory.systemTemp.createTempSync('simulator_viewer');
     sessions = SessionService(
-      connect: RunnerClient.connect,
+      connect: (endpoint) => RunnerClient.connect(
+        endpoint,
+        startupGrace: const Duration(milliseconds: 50),
+      ),
       reconnectDelay: const Duration(milliseconds: 50),
     );
     project = ProjectViewModel(settings: MemorySettingsStore());
@@ -221,6 +225,119 @@ void main() {
         await runner.stop();
       }
     });
+  });
+
+  // What the runner relays when main() dies of a Pigeon call nobody serves.
+  const pigeon = 'dev.flutter.pigeon.absent_plugin.AbsentHostApi.initialize';
+  RunnerMessage logLine(String line) => RunnerMessage(
+    log: LogLine(tag: 'stderr', message: line),
+  );
+  final diedInMain = [
+    logLine(
+      'raccoon_runner: nothing answered $pigeon (no client); the app sees no '
+      'plugin',
+    ),
+    logLine(
+      '[ERROR:flutter/runtime/dart_vm_initializer.cc(40)] Unhandled '
+      'Exception: PlatformException(channel-error, Unable to establish '
+      'connection on channel: "$pigeon"., null, null)',
+    ),
+    logLine('#0      main (package:counter/main.dart:24:5)'),
+    RunnerMessage(
+      plugins: Plugins(
+        plugins: [
+          PluginReport(
+            name: 'absent_plugin',
+            state: PluginState.PLUGIN_STATE_NO_HOST,
+            detail: 'no Linux implementation',
+          ),
+          PluginReport(
+            name: 'url_launcher_linux',
+            state: PluginState.PLUGIN_STATE_LOADED,
+          ),
+        ],
+      ),
+    ),
+  ];
+
+  testWidgets('shows why an app stopped before its first frame', (
+    tester,
+  ) async {
+    late FakeRunner editorRun;
+    await tester.runAsync(() async {
+      editorRun = await FakeRunner.start(p.join(temp.path, 'counter.sock'));
+      sessions.follow([watched(temp.path)]);
+      await until(() => sessions.session('counter') != null);
+      diedInMain.forEach(editorRun.send);
+      await until(
+        () => sessions.startupFailure('counter')?.hints.isNotEmpty ?? false,
+      );
+    });
+    await tester.pumpWidget(app());
+
+    expect(
+      find.text('counter stopped before its first frame'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('PlatformException(channel-error'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('absent_plugin has no Linux implementation'),
+      findsOneWidget,
+    );
+    expect(find.byType(RaccoonView), findsNothing);
+
+    // The plugin report is a tap away.
+    expect(find.text('url_launcher_linux: loaded'), findsNothing);
+    await tester.tap(find.text('Plugin report'));
+    await tester.pump();
+    expect(find.text('url_launcher_linux: loaded'), findsOneWidget);
+
+    await tester.runAsync(editorRun.stop);
+  });
+
+  testWidgets('once the app draws, it is shown whatever its log said', (
+    tester,
+  ) async {
+    late FakeRunner editorRun;
+    await tester.runAsync(() async {
+      editorRun = await FakeRunner.start(p.join(temp.path, 'counter.sock'));
+      sessions.follow([watched(temp.path)]);
+      await until(() => sessions.session('counter') != null);
+      diedInMain.forEach(editorRun.send);
+      await until(() => sessions.startupFailure('counter') != null);
+    });
+    await tester.pumpWidget(app());
+    expect(
+      find.text('counter stopped before its first frame'),
+      findsOneWidget,
+    );
+
+    await tester.runAsync(() async {
+      editorRun.send(
+        RunnerMessage(
+          frame: Frame(
+            width: 1,
+            height: 1,
+            rowBytes: 4,
+            pixels: [0, 0, 0, 255],
+          ),
+        ),
+      );
+      await until(
+        () => sessions.session('counter')?.client.latestFrame != null,
+      );
+      diedInMain.take(3).forEach(editorRun.send);
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+    });
+    await tester.pump();
+
+    expect(find.text('counter stopped before its first frame'), findsNothing);
+    expect(shownConnection(tester), same(sessions.session('counter')?.client));
+
+    await tester.runAsync(editorRun.stop);
   });
 
   testWidgets('explains a runner another client holds', (tester) async {

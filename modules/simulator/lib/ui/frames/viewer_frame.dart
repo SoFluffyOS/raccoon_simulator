@@ -1,5 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:provider/provider.dart';
+import 'package:raccoon/raccoon.dart';
+import 'package:raccoon_runtime/raccoon_runtime.dart';
 import 'package:raccoon_view/raccoon_view.dart';
 import 'package:simulator/design/design.dart';
 import 'package:simulator/features/features.dart';
@@ -39,6 +41,17 @@ class ViewerFrame extends StatelessWidget {
         null => null,
       },
     );
+    // An app that stopped before its first frame shows why instead of a
+    // blank viewport; once it has drawn, the app is shown whatever it does.
+    final startup = context.select<SessionService, _Startup>(
+      (service) => switch (name) {
+        final name? => (
+          failure: service.startupFailure(name),
+          plugins: service.session(name)?.client.latestPlugins,
+        ),
+        null => (failure: null, plugins: null),
+      },
+    );
     final refused = context.select<SessionService, bool>(
       (service) => switch (name) {
         final name? => service.isRefused(name),
@@ -75,6 +88,7 @@ class ViewerFrame extends StatelessWidget {
         context,
         name: name,
         session: session,
+        startup: startup,
         refused: refused,
         phase: phase,
         progress: progress,
@@ -90,6 +104,7 @@ class ViewerFrame extends StatelessWidget {
     BuildContext context, {
     required String? name,
     required RunnerSession? session,
+    required _Startup startup,
     required bool refused,
     required RunPhase phase,
     required String? progress,
@@ -100,6 +115,13 @@ class ViewerFrame extends StatelessWidget {
   }) {
     if (name == null) return _noApp(context, setup);
     if (session case final session?) {
+      if (startup.failure case final failure?) {
+        return StartupFailureMessage(
+          name: name,
+          failure: failure,
+          plugins: startup.plugins,
+        );
+      }
       return AppViewport(connection: session.client, preset: preset);
     }
     if (refused) {
@@ -200,6 +222,10 @@ class _Board extends StatelessWidget {
     );
   }
 }
+
+/// Why the shown app stopped before its first frame, with the plugin report
+/// to go with it.
+typedef _Startup = ({StartupFailure? failure, Plugins? plugins});
 
 /// What the viewport tells about setup while no app shows.
 typedef _Setup = ({bool running, CheckKind? step, bool needed, String? error});
