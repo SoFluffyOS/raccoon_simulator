@@ -2,10 +2,9 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:raccoon_view/raccoon_view.dart';
 import 'package:simulator/features/viewer/viewer.dart';
+import 'package:sofluffy_ui/sofluffy_ui.dart';
 
 import 'support/fake_connection.dart';
-
-import 'package:sofluffy_ui/sofluffy_ui.dart';
 
 void main() {
   Future<FakeConnection> pumpViewport(
