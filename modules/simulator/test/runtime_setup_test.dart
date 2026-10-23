@@ -263,11 +263,15 @@ void main() {
     () async {
       final git = p.join(temp.path, 'Git');
       touch(p.join(git, 'cmd', 'git.exe'));
-      final bash = touch(p.join(git, 'bin', 'bash.exe')).path;
+      touch(p.join(git, 'bin', 'bash.exe'));
       final programs = p.join(temp.path, 'x86');
       touch(
         p.join(programs, 'Microsoft Visual Studio', 'Installer', 'vswhere.exe'),
       );
+      // Visual Studio's CMake and Ninja, on its environment's PATH only.
+      final vsBin = p.join(temp.path, 'VS', 'bin');
+      touch(p.join(vsBin, 'cmake.exe'));
+      touch(p.join(vsBin, 'ninja.exe'));
       final windows = CheckoutPaths(checkout.root, isWindows: true);
       const engine = 'C:/engines/rev/windows-x64';
       final fake = FakeCommands(
@@ -277,11 +281,8 @@ void main() {
             _ => const [],
           },
           'vswhere.exe': (_) => const [r'C:\VS'],
-          'cmd': (_) => const [
-            r'Path=C:\VS\bin;C:\Windows',
-            r'INCLUDE=C:\VS\inc',
-          ],
-          'ninja': (_) {
+          'cmd': (_) => ['Path=$vsBin;C:\\Windows', r'INCLUDE=C:\VS\inc'],
+          'ninja.exe': (_) {
             touch(windows.runnerBinary);
             return const [];
           },
@@ -319,14 +320,15 @@ void main() {
             'Microsoft.VisualStudio.Component.VC.Tools.x86.x64 '
             '-property installationPath',
         r'cmd /c call C:\VS\VC\Auxiliary\Build\vcvars64.bat >nul && set',
-        'cmake -S . -B build -G Ninja -DRACCOON_ENGINE_DIR=$engine',
-        'ninja -C build',
+        // By their full paths: Windows would look them up on this
+        // process's PATH, not the one they are given.
+        'cmake.exe -S . -B build -G Ninja -DRACCOON_ENGINE_DIR=$engine',
+        'ninja.exe -C build',
       ]);
       expect(fake.environments[4], {
-        'PATH': '${sdk.bin};C:\\VS\\bin;C:\\Windows',
+        'PATH': '${sdk.bin};$vsBin;C:\\Windows',
         'INCLUDE': r'C:\VS\inc',
       });
-      expect(bash, endsWith('bash.exe'));
     },
     skip: !Platform.isWindows,
   );

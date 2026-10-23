@@ -201,7 +201,7 @@ final class RuntimeFixer {
     };
     await _step(
       'cmake',
-      'cmake',
+      _programIn(compilers, 'cmake'),
       ['-S', '.', '-B', 'build', '-G', 'Ninja', '-DRACCOON_ENGINE_DIR=$engine'],
       sdk: sdk,
       directory: directory,
@@ -210,7 +210,7 @@ final class RuntimeFixer {
     );
     await _step(
       'ninja',
-      'ninja',
+      _programIn(compilers, 'ninja'),
       const ['-C', 'build'],
       sdk: sdk,
       directory: directory,
@@ -220,6 +220,20 @@ final class RuntimeFixer {
     if (!File(checkout.runnerBinary).existsSync()) {
       throw FixFailed('ninja finished but ${checkout.runnerBinary} is missing');
     }
+  }
+
+  /// [name] as found on [environment]'s PATH, or [name] itself without one.
+  /// Windows looks a program up on the PATH of the process that starts it,
+  /// not the one it is given, so Visual Studio's CMake and Ninja are named
+  /// by their full paths.
+  static String _programIn(Map<String, String>? environment, String name) {
+    if (environment == null) return name;
+    for (final directory in (environment['PATH'] ?? '').split(';')) {
+      if (directory.isEmpty) continue;
+      final program = p.windows.join(directory, '$name.exe');
+      if (File(program).existsSync()) return program;
+    }
+    return name;
   }
 
   /// One of the runner's `tool/` scripts, in its directory: run by itself,
