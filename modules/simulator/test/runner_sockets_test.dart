@@ -39,4 +39,16 @@ void main() {
     });
     expect(sockets.directory, '/var/folders/xy/T/raccoon_simulator/raccoon');
   });
+
+  test('private sockets on Windows move TMP and TEMP for the run', () {
+    final sockets = RunnerSockets.forHost(
+      operatingSystem: 'windows',
+      environment: const {},
+      temporaryDirectory: r'C:\Users\me\AppData\Local\Temp',
+      private: true,
+    );
+    const root = r'C:\Users\me\AppData\Local\Temp\raccoon_simulator';
+    expect(sockets.environment, {'TMP': root, 'TEMP': root});
+    expect(sockets.directory, '$root\\raccoon');
+  });
 }

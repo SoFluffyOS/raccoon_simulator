@@ -7,7 +7,8 @@ import 'package:raccoon_runtime/raccoon_runtime.dart';
 /// an editor or a terminal puts its runner, and where any other client looks
 /// too. Private: a directory of the simulator's own, reached by pointing
 /// the device helper's base directory (`XDG_RUNTIME_DIR` on Linux, `TMPDIR`
-/// on macOS) somewhere else for the `flutter run` it starts. A runner takes
+/// on macOS, `TMP` and `TEMP` on Windows) somewhere else for the
+/// `flutter run` it starts. A runner takes
 /// one client at a time, so private sockets keep other clients from taking
 /// the simulator's runner first.
 final class RunnerSockets {
@@ -38,9 +39,14 @@ final class RunnerSockets {
       final dir? when dir.isNotEmpty && operatingSystem == 'linux' => dir,
       _ => temporaryDirectory,
     };
-    final root = p.join(base, privateFolder);
+    final paths = switch (operatingSystem) {
+      'windows' => p.windows,
+      _ => p.posix,
+    };
+    final root = paths.join(base, privateFolder);
     final overrides = switch (operatingSystem) {
       'linux' => {'XDG_RUNTIME_DIR': root},
+      'windows' => {'TMP': root, 'TEMP': root},
       _ => {'TMPDIR': root},
     };
     return RunnerSockets._(
