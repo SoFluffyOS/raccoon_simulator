@@ -77,6 +77,8 @@ flutter run -d raccoon         # or pick Raccoon in your editor
 
 You can also skip the editor. Open **Settings**, pick a Flutter project under **Run from the simulator**, then use **Run**, **Hot reload** and **Hot restart** in the toolbar.
 
+The `camera` plugin works on Raccoon. By default the runner shows a test pattern. To show something else, such as a QR code or a barcode, pick a PNG or JPEG in the project's camera row. The picture is kept per project and used from the next run, which passes it as `RACCOON_CAMERA_SOURCE`. The same variable works with `flutter run -d raccoon` from a terminal.
+
 | Option | What it does |
 |---|---|
 | `[project folder]` | Opens a project at launch |

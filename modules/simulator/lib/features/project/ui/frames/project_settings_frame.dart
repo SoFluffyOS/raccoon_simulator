@@ -9,8 +9,8 @@ import 'package:simulator/ui/widgets/widgets.dart';
 import 'package:sofluffy_ui/sofluffy_ui.dart';
 
 /// The settings' project block, for running an app from the simulator
-/// instead of an editor: open a folder, or pick a recent one. Locked while a
-/// run is active.
+/// instead of an editor: open a folder, or pick a recent one, and choose what
+/// its camera shows. Locked while a run is active.
 class ProjectSettingsFrame extends StatelessWidget {
   const ProjectSettingsFrame({super.key});
 
@@ -24,6 +24,9 @@ class ProjectSettingsFrame extends StatelessWidget {
     );
     final error = context.select<ProjectViewModel, String?>(
       (viewModel) => viewModel.error,
+    );
+    final cameraSource = context.select<ProjectViewModel, String?>(
+      (viewModel) => viewModel.cameraSource,
     );
     final locked = context.select<RunViewModel, bool>(
       (viewModel) => viewModel.isActive,
@@ -53,6 +56,20 @@ class ProjectSettingsFrame extends StatelessWidget {
           if (error case final error?) ...[
             Spacing.v4,
             Text(error, style: caption.copyWith(color: Palette.error)),
+          ],
+          if (project != null) ...[
+            Spacing.v8,
+            CameraSourceRow(
+              source: cameraSource,
+              onPick: switch (locked) {
+                true => null,
+                false => viewModel.pickCameraSource,
+              },
+              onClear: switch (locked) {
+                true => null,
+                false => viewModel.clearCameraSource,
+              },
+            ),
           ],
           Spacing.v8,
           for (final directory in recent)

@@ -37,7 +37,7 @@ final class SimulatorController {
       directory: chosen.directory,
       appName: chosen.appName,
       flutter: sdk.flutter,
-      environment: runtime.runEnvironment,
+      environment: {...runtime.runEnvironment, ...project.runEnvironment},
     );
   }
 

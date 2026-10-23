@@ -95,4 +95,41 @@ void main() {
     await viewModel.pick();
     expect(viewModel.project?.appName, 'picked');
   });
+
+  test('a camera picture is kept per project and goes to its runs', () async {
+    final settings = MemorySettingsStore();
+    String? chosen = p.join(temp.path, 'qr.png');
+    final viewModel = ProjectViewModel(
+      settings: settings,
+      pickPicture: () async => chosen,
+    );
+    addTearDown(viewModel.dispose);
+    final a = project('a');
+    final b = project('b');
+
+    // Nothing to keep it with before a project is open.
+    await viewModel.pickCameraSource();
+    expect(viewModel.cameraSource, isNull);
+
+    await viewModel.open(a);
+    expect(viewModel.runEnvironment, isEmpty);
+    await viewModel.pickCameraSource();
+    expect(viewModel.cameraSource, chosen);
+    expect(viewModel.runEnvironment, {'RACCOON_CAMERA_SOURCE': chosen});
+
+    // Cancelling keeps the picture.
+    final kept = chosen;
+    chosen = null;
+    await viewModel.pickCameraSource();
+    expect(viewModel.cameraSource, kept);
+
+    await viewModel.open(b);
+    expect(viewModel.cameraSource, isNull);
+    await viewModel.open(a);
+    expect(viewModel.cameraSource, kept);
+
+    await viewModel.clearCameraSource();
+    expect(viewModel.cameraSource, isNull);
+    expect(await settings.cameraSource(a), isNull);
+  });
 }
