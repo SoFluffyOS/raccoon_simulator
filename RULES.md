@@ -80,7 +80,7 @@ dart format apps modules && flutter analyze   # never format the submodules
 - Never edit the submodules here. A change they need goes to that
   submodule's own repository first.
 - The custom device config (`~/.config/flutter/custom_devices.json`, or
-  `%APPDATA%.flutter_custom_devices.json` on Windows) is global
+  `%APPDATA%\.flutter_custom_devices.json` on Windows) is global
   and other tools may share it. Only the Register fix writes it, and setup
   leaves an entry from another checkout alone.
 - A runner takes one client. The simulator follows the usual socket folder,
