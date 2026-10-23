@@ -177,6 +177,7 @@ class ToolbarFrame extends StatelessWidget {
             const ToolbarSeparator(),
           ],
           const PresetBarFrame(),
+          const DevicesButtonFrame(),
           IconToolButton(
             key: boardKey,
             icon: LucideIcons.layoutDashboard,

@@ -210,9 +210,10 @@ class _Board extends StatelessWidget {
         layout: context.read<BoardViewModel>(),
         ink: Palette.textMuted,
         titleStyle: caption,
+        menuColor: Palette.surface,
         empty: Text(
-          'Run the project on raccoon, raccoon-phone, raccoon-tablet '
-          'or raccoon-desktop from your editor: each shows up here.',
+          'Run the project on raccoon from your editor: it shows up here. '
+          'Pick its size from the frame\'s title.',
           style: context.fluffyTheme.typography.base2.copyWith(
             color: Palette.textMuted,
           ),

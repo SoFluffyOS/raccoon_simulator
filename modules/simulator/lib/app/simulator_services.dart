@@ -67,7 +67,10 @@ final class SimulatorServices {
       runtime: runtime,
       project: project,
       viewer: ViewerViewModel(),
-      board: BoardViewModel(settings: settings),
+      board: BoardViewModel(
+        settings: settings,
+        sizes: AppSizes.forHost(host.environment),
+      ),
       chrome: WindowChrome(toolbarIsTitleBar: host.operatingSystem == 'macos'),
       controller: SimulatorController(
         project: project,

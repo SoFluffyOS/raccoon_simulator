@@ -21,6 +21,7 @@ Flutter Wonderous running inside [Lumide](https://lumide.dev) on Raccoon: pick R
 - **Set up on launch**: the first launch downloads the prebuilt runner (or builds it when no release fits your host), installs the engine and registers the Raccoon custom device for you.
 - **A simulator window**: a compact toolbar over your app. Everything else lives in Settings.
 - **Device sizes**: Fit, Phone, Tablet and Desktop presets that scale down to fit.
+- **One device**: just Raccoon in your editor's picker. On the board, pick a run's size from its frame's title; the app resizes live and starts at that size next time. The devices button adds more only to run copies side by side, and drops extras an older setup left.
 - **macOS, Linux and Windows**.
 
 ## Benchmarks

@@ -225,6 +225,19 @@ void main() {
     expect(runtime.deviceIds, ['raccoon', 'raccoon-ipad']);
   });
 
+  test('keep only Raccoon takes the extras out of the picker', () async {
+    releases.addRelease('runner-v0.3.1', platforms: ['linux-x64']);
+    final runtime = viewModel(commands());
+    await runtime.setUp();
+    await runtime.setDevice(RaccoonDevice.tablet, on: true);
+    await runtime.setDevice(RaccoonDevice.second, on: true);
+    expect(runtime.deviceIds, ['raccoon', 'raccoon-tablet', 'raccoon-2']);
+
+    runtime.keepOnlyRaccoon();
+    expect(runtime.deviceIds, ['raccoon']);
+    expect(devices.ids(), ['raccoon']);
+  });
+
   test('builds the runner when no release fits', () async {
     releases.addRelease('runner-v0.2.0', platforms: ['linux-x64']);
     final fake = commands();

@@ -144,6 +144,36 @@ void main() {
     );
     await _screenshot(tester, '3-phone');
 
+    // On the board the size belongs to the run: picked from the frame's
+    // title, live (#89). The board keeps it for the next run; this one's
+    // is not left behind.
+    final saved = File(
+      p.join(services.board.sizes?.directory ?? '', name, 'size'),
+    );
+    addTearDown(() {
+      if (saved.existsSync()) saved.deleteSync();
+    });
+    await tester.tap(find.byKey(ToolbarFrame.boardKey));
+    await tester.pump();
+    await tester.tap(find.byKey(RaccoonBoard.sizeKey(name)));
+    await tester.pump();
+    await _screenshot(tester, '4-board-size-menu');
+    await tester.tap(find.byKey(RaccoonBoard.sizeOptionKey(name, 'tablet')));
+    await _pumpUntil(
+      tester,
+      () => frame()?.width == 1640 && frame()?.height == 2360,
+      'a 820×1180 @2x frame on the board',
+    );
+    expect(saved.readAsStringSync(), '820x1180@2\n');
+    await _screenshot(tester, '5-board-tablet');
+
+    await tester.tap(find.byKey(DevicesButtonFrame.buttonKey));
+    await tester.pump();
+    expect(find.byType(DevicesMenuFrame), findsOneWidget);
+    await _screenshot(tester, '6-devices', wholeView: true);
+    await tester.tap(find.byKey(DevicesButtonFrame.buttonKey));
+    await tester.pump();
+
     await tester.tap(find.byKey(ToolbarFrame.stopKey));
     await _pumpUntil(
       tester,
@@ -236,13 +266,28 @@ String _kindOf(rc.Frame? frame) => switch (frame) {
   _ => '${frame.sequence} inline',
 };
 
-Future<void> _screenshot(WidgetTester tester, String name) async {
+/// The window as a PNG in the screenshot folder; [wholeView] takes the
+/// whole view, overlays such as an open menu included.
+Future<void> _screenshot(
+  WidgetTester tester,
+  String name, {
+  bool wholeView = false,
+}) async {
   if (_screenshots.isEmpty) return;
   await tester.pump(const Duration(milliseconds: 100));
-  final boundary = tester.renderObject<RenderRepaintBoundary>(
-    find.byKey(SimulatorPage.windowKey),
-  );
-  final image = await boundary.toImage();
+  final view = tester.binding.renderViews.first;
+  final image = switch ((wholeView, view.debugLayer)) {
+    // The view's layer works in physical pixels.
+    (true, final OffsetLayer layer) => await layer.toImage(
+      Offset.zero & view.size * tester.view.devicePixelRatio,
+    ),
+    _ =>
+      await tester
+          .renderObject<RenderRepaintBoundary>(
+            find.byKey(SimulatorPage.windowKey),
+          )
+          .toImage(),
+  };
   final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
   image.dispose();
   if (bytes == null) return;

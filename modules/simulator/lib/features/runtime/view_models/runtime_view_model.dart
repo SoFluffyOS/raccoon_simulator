@@ -139,6 +139,16 @@ final class RuntimeViewModel extends ChangeNotifier {
     return true;
   }
 
+  /// Takes every Raccoon device but `raccoon` out of the tool's list, as an
+  /// older setup or the old settings left them.
+  void keepOnlyRaccoon() {
+    for (final id in _deviceIds) {
+      if (id == 'raccoon' || !_fixer.removeDevice(id)) continue;
+      _onLine('Removed $id');
+    }
+    refresh();
+  }
+
   /// Applies [kind] and checks again. True when the fix worked.
   Future<bool> fix(FixKind kind) async {
     if (_fixing != null) return false;
