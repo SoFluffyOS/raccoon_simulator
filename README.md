@@ -1,6 +1,6 @@
 # Raccoon Simulator
 
-![Platform](https://img.shields.io/badge/platform-macos%20%7C%20linux-lightgrey) [![License: BSD-3-Clause](https://img.shields.io/badge/License-BSD--3--Clause-blue.svg)](LICENSE) [![Powered by SoFluffy](https://img.shields.io/badge/Powered%20by-SoFluffy-orange)](https://sofluffy.io)
+![Platform](https://img.shields.io/badge/platform-macos%20%7C%20linux%20%7C%20windows-lightgrey) [![License: BSD-3-Clause](https://img.shields.io/badge/License-BSD--3--Clause-blue.svg)](LICENSE) [![Powered by SoFluffy](https://img.shields.io/badge/Powered%20by-SoFluffy-orange)](https://sofluffy.io)
 
 Run your Flutter app on Raccoon from the editor you already love, and see it in a window.
 
@@ -21,7 +21,7 @@ Flutter Wonderous running inside [Lumide](https://lumide.dev) on Raccoon: pick R
 - **Set up on launch**: the first launch downloads the prebuilt runner (or builds it when no release fits your host), installs the engine and registers the Raccoon custom device for you.
 - **A simulator window**: a compact toolbar over your app. Everything else lives in Settings.
 - **Device sizes**: Fit, Phone, Tablet and Desktop presets that scale down to fit.
-- **macOS and Linux**.
+- **macOS, Linux and Windows**.
 
 ## Benchmarks
 
@@ -50,7 +50,7 @@ git clone --recurse-submodules https://github.com/SoFluffyOS/raccoon_simulator.g
 cd raccoon_simulator
 ./get.sh
 cd apps/raccoon_simulator
-flutter run -d macos   # or -d linux
+flutter run -d macos   # or -d linux, -d windows
 ```
 
 The first launch downloads the runner, or builds it when no release fits your host, which takes a few minutes. Then:
@@ -66,10 +66,11 @@ flutter run -d raccoon         # or pick Raccoon in your editor
 - Flutter 3.27 and up for the apps you run (tested with 3.27.4 and 3.47.7); native plugin loading is tested on 3.47
 - To build the runner yourself, when no prebuilt release fits your host or you want your own build: a C++17 compiler, CMake, Ninja, `curl` and `unzip`
 - macOS: `xcode-select --install` and `brew install cmake ninja`, for that build
+- Windows: Git for Windows, whose Git Bash runs the device helper, and for that build Visual Studio with the C++ workload, whose CMake and Ninja Build uses
 
 ## Prebuilt binaries
 
-**Download** in Settings fetches the runner release that matches this checkout (the same major and minor as `raccoon/native/raccoon_runner/VERSION`) from the [Raccoon repository's releases](https://github.com/SoFluffyOS/raccoon/releases) (the `runner-v*` tags) and unpacks it, binary and device helper, into `~/.local/share/raccoon_simulator/runner` (under `$XDG_DATA_HOME` when set). The Raccoon device then points at that helper. **Build** stays for when there is no release for your host or no network; setup tries Download first, and a build in `native/raccoon_runner/build` always wins over a download. The download carries no quarantine attribute on macOS; an archive you fetch with a browser needs `xattr -d com.apple.quarantine raccoon_runner` before it runs.
+**Download** in Settings fetches the runner release that matches this checkout (the same major and minor as `raccoon/native/raccoon_runner/VERSION`) from the [Raccoon repository's releases](https://github.com/SoFluffyOS/raccoon/releases) (the `runner-v*` tags) and unpacks it, binary and device helper, into `~/.local/share/raccoon_simulator/runner` (under `$XDG_DATA_HOME` when set; `%LOCALAPPDATA%\raccoon_simulator\runner` on Windows). The Raccoon device then points at that helper. **Build** stays for when there is no release for your host or no network; setup tries Download first, and a build in `native/raccoon_runner/build` always wins over a download. The download carries no quarantine attribute on macOS; an archive you fetch with a browser needs `xattr -d com.apple.quarantine raccoon_runner` before it runs.
 
 ## Run from the simulator
 

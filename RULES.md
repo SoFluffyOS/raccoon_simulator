@@ -6,7 +6,7 @@ agents alike. `AGENTS.md` points here.
 ## Project
 
 Raccoon Simulator is a Flutter desktop app (Dart 3.13+, Flutter 3.47+) for
-macOS and Linux. It sets up the Raccoon runtime so `flutter devices` lists
+macOS, Linux and Windows. It sets up the Raccoon runtime so `flutter devices` lists
 Raccoon, then shows any app run on that device, from an editor or a
 terminal, in its window. It can also run a project itself with
 `flutter run -d raccoon --machine`. It is alpha and moves fast for Lumide.
@@ -18,7 +18,7 @@ Keep the code host-neutral. It is a pub workspace.
 ./get.sh                                   # flutter pub get (restores a file pub rewrites in raccoon_view)
 ./run_tests.sh                             # analyze, then unit and widget tests
 ./e2e.sh [project] [screenshots]           # real runtime and window, needs a display
-cd apps/raccoon_simulator && flutter run -d macos   # or -d linux
+cd apps/raccoon_simulator && flutter run -d macos   # or -d linux, -d windows
 cd modules/simulator && flutter test test/path/to_test.dart
 dart format apps modules && flutter analyze   # never format the submodules
 ```
@@ -27,7 +27,7 @@ dart format apps modules && flutter analyze   # never format the submodules
 
 | Directory | Purpose |
 |-----------|---------|
-| `apps/raccoon_simulator/` | Entry point (`main.dart`), macOS and Linux runners, end-to-end test |
+| `apps/raccoon_simulator/` | Entry point (`main.dart`), macOS, Linux and Windows runners, end-to-end test |
 | `modules/simulator/` | Features, window UI, design tokens, tests |
 | `raccoon/` | The Raccoon family (protocol, runtime, view, runner), one submodule, read-only here |
 
@@ -79,7 +79,8 @@ dart format apps modules && flutter analyze   # never format the submodules
 
 - Never edit the submodules here. A change they need goes to that
   submodule's own repository first.
-- The custom device config (`~/.config/flutter/custom_devices.json`) is global
+- The custom device config (`~/.config/flutter/custom_devices.json`, or
+  `%APPDATA%.flutter_custom_devices.json` on Windows) is global
   and other tools may share it. Only the Register fix writes it, and setup
   leaves an entry from another checkout alone.
 - A runner takes one client. The simulator follows the usual socket folder,
