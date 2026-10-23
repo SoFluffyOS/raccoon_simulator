@@ -319,6 +319,34 @@ void main() {
       expect(found?.flutter, p.join(found?.root ?? '', 'bin', 'flutter'));
     });
 
+    test('reads the tool\'s settings where the tool keeps them', () {
+      const windows = HostInfo(
+        operatingSystem: 'windows',
+        environment: {
+          'APPDATA': r'C:\Users\x\AppData\Roaming',
+          'USERPROFILE': r'C:\Users\x',
+        },
+        temporaryDirectory: r'C:\Temp',
+        workingDirectory: r'C:\',
+        executable: r'C:\x.exe',
+      );
+      expect(
+        HostLocator.flutterSettings(windows),
+        r'C:\Users\x\AppData\Roaming\.flutter_settings',
+      );
+      const linux = HostInfo(
+        operatingSystem: 'linux',
+        environment: {'HOME': '/home/x', 'XDG_CONFIG_HOME': '/config'},
+        temporaryDirectory: '/tmp',
+        workingDirectory: '/',
+        executable: '/x',
+      );
+      expect(
+        HostLocator.flutterSettings(linux),
+        p.join('/config', 'flutter', 'settings'),
+      );
+    });
+
     test('keeps the downloaded runner in the data home', () {
       expect(
         HostLocator.prebuiltRunner(host).directory,
