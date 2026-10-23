@@ -195,11 +195,17 @@ final class SessionService extends ChangeNotifier {
   }
 
   /// Whether [endpoint]'s socket file was made after [since], give or take
-  /// the file system's timestamp resolution.
+  /// the file system's timestamp resolution. Windows reports its creation
+  /// time as changed, and gives a file made again under a name just freed
+  /// the old one's (file system tunnelling), so the later of that and the
+  /// modification time counts.
   static bool _isFresh(UnixSocketEndpoint endpoint, DateTime since) {
     final stat = FileStat.statSync(endpoint.path);
     if (stat.type == FileSystemEntityType.notFound) return false;
-    final made = stat.changed;
+    final made = switch (stat.modified.isAfter(stat.changed)) {
+      true => stat.modified,
+      false => stat.changed,
+    };
     return !made.isBefore(since.subtract(const Duration(seconds: 1)));
   }
 
