@@ -253,8 +253,10 @@ final class SessionService extends ChangeNotifier {
       printLog('no runner behind ${endpoint.path}: ${error.message}');
       return;
     }
+    // A runner another client has says so (RunnerBusy) and hangs up; its
+    // hello fails rather than never coming. Either way it said no (#91).
     final saidHello = await Future.any([
-      client.hello.then((_) => true),
+      client.hello.then((_) => true, onError: (Object _) => false),
       client.closed.then((_) => false),
     ]).timeout(helloTimeout, onTimeout: () => true);
     if (generation != _generation || _disposed) {

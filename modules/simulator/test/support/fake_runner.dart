@@ -4,11 +4,19 @@ import 'dart:io';
 import 'package:raccoon/raccoon.dart';
 import 'package:raccoon_runtime/raccoon_runtime.dart';
 
-/// A runner stand-in on a real Unix socket: says hello with its [pid], or,
-/// with [refuse], hangs up at once the way a runner does when another client
+/// A runner stand-in on a real Unix socket: says hello with its [pid]; with
+/// [busyWith], says another client (that pid) has it and hangs up, as a
+/// runner does now; or, with [refuse], hangs up at once the way a runner did
+/// when another client
 /// holds it.
 final class FakeRunner {
-  FakeRunner._(this.path, this.pid, this._server, {required this.refuse}) {
+  FakeRunner._(
+    this.path,
+    this.pid,
+    this._server, {
+    required this.refuse,
+    this.busyWith,
+  }) {
     _server.listen(_accept);
   }
 
@@ -16,17 +24,25 @@ final class FakeRunner {
     String path, {
     int pid = 1,
     bool refuse = false,
+    int? busyWith,
   }) async {
     final server = await ServerSocket.bind(
       InternetAddress(path, type: InternetAddressType.unix),
       0,
     );
-    return FakeRunner._(path, pid, server, refuse: refuse);
+    return FakeRunner._(
+      path,
+      pid,
+      server,
+      refuse: refuse,
+      busyWith: busyWith,
+    );
   }
 
   final String path;
   final int pid;
   final bool refuse;
+  final int? busyWith;
   final ServerSocket _server;
   final _clients = <Socket>[];
   var connections = 0;
@@ -35,6 +51,20 @@ final class FakeRunner {
     connections++;
     if (refuse) {
       socket.destroy();
+      return;
+    }
+    if (busyWith case final holder?) {
+      socket.add(
+        MessageFraming.frame(
+          RunnerMessage(busy: Busy(pid: holder)).writeToBuffer(),
+        ),
+      );
+      // The busy reply lands before the hang-up, as from a real runner.
+      unawaited(
+        Future<void>.delayed(
+          const Duration(milliseconds: 200),
+        ).then((_) => socket.destroy()),
+      );
       return;
     }
     _clients.add(socket);

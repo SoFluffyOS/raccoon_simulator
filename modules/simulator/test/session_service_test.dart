@@ -110,6 +110,18 @@ void main() {
     expect(connected, isEmpty);
   });
 
+  test('a runner that says another client has it is marked refused', () async {
+    // What the runner says now, before it hangs up (#91): the hello fails
+    // with RunnerBusy, which went uncaught.
+    final runner = await FakeRunner.start(socket('hello'), busyWith: 42);
+    addTearDown(runner.stop);
+    service.follow([watched(temp.path)]);
+
+    await until(() => service.isRefused('hello'));
+    expect(service.session('hello'), isNull);
+    expect(connected, isEmpty);
+  });
+
   test('retry connects once the other client let go', () async {
     final busy = await FakeRunner.start(socket('hello'), refuse: true);
     service.follow([watched(temp.path)]);
