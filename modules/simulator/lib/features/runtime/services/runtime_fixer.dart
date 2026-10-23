@@ -182,32 +182,30 @@ final class RuntimeFixer {
     void Function(String) onLine,
   ) async {
     final directory = checkout.runnerDirectory;
-    await _step(
-      'tool/protoc.sh',
-      checkout.tool('protoc.sh'),
-      const [],
+    await _script('protoc.sh', checkout, sdk: sdk, onLine: onLine);
+    final engineDir = await _script(
+      'engine_dir.sh',
+      checkout,
       sdk: sdk,
-      directory: directory,
-      onLine: onLine,
-    );
-    final engineDir = await _step(
-      'tool/engine_dir.sh',
-      checkout.tool('engine_dir.sh'),
-      const [],
-      sdk: sdk,
-      directory: directory,
       onLine: onLine,
     );
     final engine = engineDir.lastWhere(
       (line) => line.trim().isNotEmpty,
       orElse: () => throw const FixFailed('engine_dir.sh printed no path'),
     );
+    // On Windows the compiler, and the CMake and Ninja that come with it,
+    // are on the PATH only in Visual Studio's developer environment.
+    final compilers = switch (host.isWindows) {
+      true => await _msvcEnvironment(sdk, onLine),
+      false => null,
+    };
     await _step(
       'cmake',
       'cmake',
       ['-S', '.', '-B', 'build', '-G', 'Ninja', '-DRACCOON_ENGINE_DIR=$engine'],
       sdk: sdk,
       directory: directory,
+      environment: compilers,
       onLine: onLine,
     );
     await _step(
@@ -216,11 +214,121 @@ final class RuntimeFixer {
       const ['-C', 'build'],
       sdk: sdk,
       directory: directory,
+      environment: compilers,
       onLine: onLine,
     );
     if (!File(checkout.runnerBinary).existsSync()) {
       throw FixFailed('ninja finished but ${checkout.runnerBinary} is missing');
     }
+  }
+
+  /// One of the runner's `tool/` scripts, in its directory: run by itself,
+  /// or on Windows by Git Bash, as the device helper is there.
+  Future<List<String>> _script(
+    String name,
+    CheckoutPaths checkout, {
+    required FlutterSdk sdk,
+    required void Function(String) onLine,
+  }) {
+    final script = checkout.tool(name);
+    final (executable, arguments) = switch (host.isWindows) {
+      true => (
+        CustomDeviceConfig.gitBashFor(
+          host.environment,
+          (path) => File(path).existsSync(),
+        ),
+        [script],
+      ),
+      false => (script, const <String>[]),
+    };
+    return _step(
+      'tool/$name',
+      executable,
+      arguments,
+      sdk: sdk,
+      directory: checkout.runnerDirectory,
+      onLine: onLine,
+    );
+  }
+
+  /// The environment of Visual Studio's x64 developer prompt, with the SDK
+  /// first on the PATH: what `vcvars64.bat` of the newest install with the
+  /// C++ tools sets, as `vswhere` finds it.
+  Future<Map<String, String>> _msvcEnvironment(
+    FlutterSdk sdk,
+    void Function(String) onLine,
+  ) async {
+    final programs =
+        host.environment['ProgramFiles(x86)'] ?? r'C:\Program Files (x86)';
+    final vswhere = p.windows.join(
+      programs,
+      'Microsoft Visual Studio',
+      'Installer',
+      'vswhere.exe',
+    );
+    if (!File(vswhere).existsSync()) {
+      throw const FixFailed(
+        'Build needs Visual Studio with its C++ tools; none is installed',
+      );
+    }
+    final found = await _step(
+      'vswhere',
+      vswhere,
+      const [
+        '-latest',
+        '-products',
+        '*',
+        '-requires',
+        'Microsoft.VisualStudio.Component.VC.Tools.x86.x64',
+        '-property',
+        'installationPath',
+      ],
+      sdk: sdk,
+      onLine: onLine,
+    );
+    final install = found.firstWhere(
+      (line) => line.trim().isNotEmpty,
+      orElse: () => throw const FixFailed(
+        'Build needs Visual Studio with its C++ tools; '
+        'no installation has them',
+      ),
+    );
+    final vcvars = p.windows.join(
+      install.trim(),
+      'VC',
+      'Auxiliary',
+      'Build',
+      'vcvars64.bat',
+    );
+    // What vcvars sets is printed by `set`, not shown: it is the whole
+    // environment.
+    onLine('\$ vcvars64.bat');
+    final result = await commands.run('cmd', [
+      '/c',
+      'call',
+      vcvars,
+      '>nul',
+      '&&',
+      'set',
+    ]);
+    if (result.exitCode != 0) {
+      throw FixFailed('vcvars64.bat failed with exit code ${result.exitCode}');
+    }
+    final environment = <String, String>{};
+    for (final line in result.stdout) {
+      final at = line.indexOf('=');
+      if (at <= 0) continue;
+      final name = line.substring(0, at);
+      final key = switch (name.toUpperCase()) {
+        'PATH' => 'PATH',
+        _ => name,
+      };
+      environment[key] = line.substring(at + 1);
+    }
+    return {
+      ...environment,
+      'PATH': '${sdk.bin};${environment['PATH'] ?? ''}',
+    };
   }
 
   Future<void> _installEngine(
@@ -245,6 +353,7 @@ final class RuntimeFixer {
     required FlutterSdk? sdk,
     required void Function(String) onLine,
     String? directory,
+    Map<String, String>? environment,
   }) async {
     onLine('\$ $label ${arguments.join(' ')}'.trimRight());
     final ({int exitCode, List<String> stdout}) result;
@@ -253,7 +362,7 @@ final class RuntimeFixer {
         executable,
         arguments,
         workingDirectory: directory,
-        environment: environmentFor(sdk),
+        environment: environment ?? environmentFor(sdk),
         onLine: onLine,
       );
     } on ProcessException catch (error) {

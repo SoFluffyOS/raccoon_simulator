@@ -20,6 +20,9 @@ final class FakeCommands implements CommandRunner {
   final String? failing;
   final ran = <String>[];
 
+  /// The environment each command in [ran] was given.
+  final environments = <Map<String, String>>[];
+
   @override
   Future<({int exitCode, List<String> stdout})> run(
     String executable,
@@ -30,6 +33,7 @@ final class FakeCommands implements CommandRunner {
   }) async {
     final name = p.basename(executable);
     ran.add([name, ...arguments].join(' '));
+    environments.add(environment);
     if (name == failing) return (exitCode: 1, stdout: const <String>[]);
     final stdout = effects[name]?.call(arguments) ?? const <String>[];
     return (exitCode: 0, stdout: stdout);
@@ -155,12 +159,12 @@ void main() {
   const buildCommands = [
     'protoc.sh',
     'engine_dir.sh',
-    'cmake -S . -B build -G Ninja -DRACCOON_ENGINE_DIR=ENGINES/deb287481e0123456789',
+    'cmake -S . -B build -G Ninja -DRACCOON_ENGINE_DIR=<engine>',
     'ninja -C build',
   ];
   List<String> build() => [
     for (final command in buildCommands)
-      command.replaceFirst('ENGINES', p.join(temp.path, 'engines')),
+      command.replaceFirst('<engine>', p.join(temp.path, 'engines', revision)),
   ];
 
   test('sets up a fresh machine with the downloaded runner', () async {
@@ -253,6 +257,79 @@ void main() {
     expect(fake.ran, contains('ninja -C build'));
     expect(lines, contains(contains('Could not download the runner')));
   });
+
+  test(
+    'builds on Windows through Git Bash and Visual Studio\'s environment',
+    () async {
+      final git = p.join(temp.path, 'Git');
+      touch(p.join(git, 'cmd', 'git.exe'));
+      final bash = touch(p.join(git, 'bin', 'bash.exe')).path;
+      final programs = p.join(temp.path, 'x86');
+      touch(
+        p.join(programs, 'Microsoft Visual Studio', 'Installer', 'vswhere.exe'),
+      );
+      final windows = CheckoutPaths(checkout.root, isWindows: true);
+      const engine = 'C:/engines/rev/windows-x64';
+      final fake = FakeCommands(
+        effects: {
+          'bash.exe': (arguments) => switch (p.basename(arguments.single)) {
+            'engine_dir.sh' => const [engine],
+            _ => const [],
+          },
+          'vswhere.exe': (_) => const [r'C:\VS'],
+          'cmd': (_) => const [
+            r'Path=C:\VS\bin;C:\Windows',
+            r'INCLUDE=C:\VS\inc',
+          ],
+          'ninja': (_) {
+            touch(windows.runnerBinary);
+            return const [];
+          },
+        },
+      );
+      final fixer = RuntimeFixer(
+        host: HostInfo(
+          operatingSystem: 'windows',
+          environment: {
+            'PATH': p.join(git, 'cmd'),
+            'ProgramFiles(x86)': programs,
+          },
+          temporaryDirectory: temp.path,
+          workingDirectory: checkout.root,
+          executable: r'C:\raccoon_simulator.exe',
+        ),
+        commands: fake,
+        store: store,
+        devices: devices,
+        prebuilt: prebuilt,
+      );
+
+      await fixer.fix(
+        FixKind.build,
+        sdk: sdk,
+        checkout: windows,
+        runner: null,
+        onLine: lines.add,
+      );
+
+      expect(fake.ran, [
+        'bash.exe ${windows.tool('protoc.sh')}',
+        'bash.exe ${windows.tool('engine_dir.sh')}',
+        'vswhere.exe -latest -products * -requires '
+            'Microsoft.VisualStudio.Component.VC.Tools.x86.x64 '
+            '-property installationPath',
+        r'cmd /c call C:\VS\VC\Auxiliary\Build\vcvars64.bat >nul && set',
+        'cmake -S . -B build -G Ninja -DRACCOON_ENGINE_DIR=$engine',
+        'ninja -C build',
+      ]);
+      expect(fake.environments[4], {
+        'PATH': '${sdk.bin};C:\\VS\\bin;C:\\Windows',
+        'INCLUDE': r'C:\VS\inc',
+      });
+      expect(bash, endsWith('bash.exe'));
+    },
+    skip: !Platform.isWindows,
+  );
 
   test('stops at the first fix that fails', () async {
     final fake = commands(failing: 'cmake');
