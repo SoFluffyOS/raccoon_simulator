@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
+import 'package:raccoon_runtime/raccoon_runtime.dart';
 import 'package:simulator/features/runtime/runtime.dart';
 
 import 'support/fake_release_server.dart';
@@ -192,9 +193,9 @@ void main() {
     );
     expect(File(p.join(prebuilt.directory, 'stale')).existsSync(), isFalse);
     expect(Directory('${prebuilt.directory}.partial').existsSync(), isFalse);
-    final ran = await Process.run(prebuilt.binary, const []);
+    final ran = await _runScript(prebuilt.binary);
     expect(ran.stdout, 'raccoon_runner 0.3.1\n');
-    final ping = await Process.run(prebuilt.deviceHelper, const []);
+    final ping = await _runScript(prebuilt.deviceHelper);
     expect(ping.stdout, 'ping\n');
   });
 
@@ -285,3 +286,11 @@ void main() {
     await expectLater(downloader.find(pinned), throwsA(isA<DownloadFailed>()));
   });
 }
+
+/// Runs one of the archive's stand-in scripts: by its executable bit, or on
+/// Windows, which has none, through Git Bash as the device helper is.
+Future<ProcessResult> _runScript(String path) =>
+    switch (CustomDeviceConfig.hostLauncher) {
+      [final shell] => Process.run(shell, [path]),
+      _ => Process.run(path, const []),
+    };
