@@ -4,8 +4,8 @@ import 'package:path/path.dart' as p;
 import 'package:simulator/ui/widgets/widgets.dart';
 import 'package:sofluffy_ui/sofluffy_ui.dart';
 
-/// What the project's camera shows: a picture, or the runner's test pattern;
-/// the image button picks one, × goes back to the pattern.
+/// What the project's camera shows: a picture or video, or the runner's test
+/// pattern; the image button picks one, × goes back to the pattern.
 class CameraSourceRow extends StatelessWidget {
   const CameraSourceRow({
     super.key,
@@ -17,7 +17,7 @@ class CameraSourceRow extends StatelessWidget {
   static const pickKey = ValueKey('camera-source-pick');
   static const clearKey = ValueKey('camera-source-clear');
 
-  /// The picture's path, or null for the test pattern.
+  /// The picture's or video's path, or null for the test pattern.
   final String? source;
 
   final VoidCallback? onPick;
@@ -41,7 +41,7 @@ class CameraSourceRow extends StatelessWidget {
           IconToolButton(
             key: pickKey,
             icon: LucideIcons.image,
-            tooltip: 'Show a picture',
+            tooltip: 'Choose what the camera shows',
             onTap: onPick,
           ),
           IconToolButton(

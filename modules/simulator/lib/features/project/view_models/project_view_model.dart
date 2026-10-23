@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/foundation.dart';
 import 'package:simulator/features/project/models/models.dart';
@@ -7,14 +9,20 @@ import 'package:simulator/services/services.dart';
 /// Shows a folder picker; [getDirectoryPath] in the app.
 typedef DirectoryPicker = Future<String?> Function();
 
-/// Shows a picker for a PNG or JPEG; [openPicture] in the app.
+/// Shows a picker for what the camera shows; [openPicture] in the app.
 typedef PicturePicker = Future<String?> Function();
 
-/// [openFile] for a PNG or JPEG, its path.
+/// [openFile] for a PNG or JPEG, or on Windows a video too, where the runner
+/// plays one; its path.
 Future<String?> openPicture() async {
   final file = await openFile(
-    acceptedTypeGroups: const [
-      XTypeGroup(label: 'Pictures', extensions: ['png', 'jpg', 'jpeg']),
+    acceptedTypeGroups: [
+      const XTypeGroup(label: 'Pictures', extensions: ['png', 'jpg', 'jpeg']),
+      if (Platform.isWindows)
+        const XTypeGroup(
+          label: 'Videos',
+          extensions: ['mp4', 'mov', 'm4v', 'wmv', 'avi'],
+        ),
     ],
   );
   return file?.path;
@@ -51,8 +59,8 @@ final class ProjectViewModel extends ChangeNotifier {
   /// Why the last folder could not be opened.
   String? get error => _error;
 
-  /// The picture the project's camera shows, or null for the runner's test
-  /// pattern. Kept per project; a run picks it up when it starts.
+  /// The picture or video the project's camera shows, or null for the
+  /// runner's test pattern. Kept per project; a run picks it up when it starts.
   String? get cameraSource => _cameraSource;
 
   /// What a run of the project adds to the tool's environment: the camera's
@@ -98,7 +106,7 @@ final class ProjectViewModel extends ChangeNotifier {
     await _settings.setRecentProjects(_recent);
   }
 
-  /// Asks for a picture for the project's camera and keeps it.
+  /// Asks for a picture or video for the project's camera and keeps it.
   Future<void> pickCameraSource() async {
     if (_project == null) return;
     final path = await _pickPicture();
