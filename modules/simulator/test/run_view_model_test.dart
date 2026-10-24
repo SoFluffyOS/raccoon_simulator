@@ -188,4 +188,55 @@ void main() {
     expect(failing.phase, RunPhase.idle);
     expect(failing.error, contains('no such file'));
   });
+
+  // #132: the app name outlived the run, so the window kept showing it and
+  // quitting could shut down a runner an editor started under that name.
+  test('a run that ended names no app', () async {
+    await startApp();
+    expect(viewModel.appName, 'hello');
+    await process.exit(0);
+    await pump();
+    expect(viewModel.appName, isNull);
+  });
+
+  test(
+    'a stop during the build stays a stop when the app starts late',
+    () async {
+      await viewModel.run(directory: '/p', appName: 'p', flutter: 'flutter');
+      process.emitEvent('app.start', {
+        'appId': 'a1',
+        'deviceId': 'raccoon',
+        'supportsRestart': true,
+      });
+      await pump();
+      final request = process.nextRequest();
+      final stop = viewModel.stop();
+      await request;
+      process.emitEvent('app.started', {'appId': 'a1'});
+      await pump();
+      expect(viewModel.phase, RunPhase.stopping);
+      await process.exit(1);
+      await stop;
+      await pump();
+      expect(viewModel.phase, RunPhase.idle);
+      expect(viewModel.error, isNull);
+    },
+  );
+
+  test('the lines a tool prints as it exits are kept', () async {
+    await viewModel.run(directory: '/p', appName: 'p', flutter: 'flutter');
+    process.exitBeforeOutput(1);
+    await pump();
+    process
+      ..emit('lib/main.dart:3:1: Error: Expected a declaration')
+      ..emitError('Error: Build failed');
+    await process.closeOutput();
+    for (var round = 0; round < 5; round++) {
+      await pump();
+    }
+    final texts = log.lines.map((line) => line.text);
+    expect(texts, contains('lib/main.dart:3:1: Error: Expected a declaration'));
+    expect(texts, contains('Error: Build failed'));
+    expect(viewModel.error, contains('exited with code 1'));
+  });
 }

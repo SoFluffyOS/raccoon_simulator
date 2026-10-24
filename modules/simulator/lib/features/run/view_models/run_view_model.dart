@@ -103,6 +103,7 @@ final class RunViewModel extends ChangeNotifier {
     } on Object catch (error) {
       _fail('Could not start flutter: $error');
       _phase = RunPhase.idle;
+      _appName = null;
       _progress = null;
       _notify();
       return;
@@ -112,7 +113,7 @@ final class RunViewModel extends ChangeNotifier {
       return;
     }
     _run = run;
-    _messages = run.messages.listen(_onMessage);
+    _messages = run.messages.listen((message) => _onMessage(run, message));
     _errors = run.errors.listen((line) => _log.add(LogSource.error, line));
     unawaited(run.exitCode.then((code) => _onExit(run, code)));
   }
@@ -181,12 +182,11 @@ final class RunViewModel extends ChangeNotifier {
     );
   }
 
-  void _onMessage(MachineMessage message) {
+  void _onMessage(FlutterRun run, MachineMessage message) {
+    if (_logged(message)) return;
+    // A run that ended only finishes its output: logged, nothing more.
+    if (!identical(run, _run)) return;
     switch (message) {
-      case DaemonConnected():
-        break;
-      case DaemonLog(:final message, :final isError):
-        _log.add(_source(isError), message);
       case AppStart(:final appId, :final supportsRestart):
         _appId = appId;
         _supportsRestart = supportsRestart;
@@ -198,7 +198,8 @@ final class RunViewModel extends ChangeNotifier {
       case AppStarted():
         _launchClock.stop();
         _launchTime = _launchClock.elapsed;
-        _phase = RunPhase.running;
+        // Stopped while it built: it stays stopping, so its exit is expected.
+        if (_phase != RunPhase.stopping) _phase = RunPhase.running;
         _progress = null;
         _log.add(
           LogSource.tool,
@@ -215,20 +216,35 @@ final class RunViewModel extends ChangeNotifier {
         _notify();
       case AppProgress():
         break;
+      case AppStop(:final error):
+        if (error case final error?) _fail('App stopped: $error');
+        _log.add(LogSource.tool, 'App stopped');
+      case DaemonConnected():
+      case DaemonLog():
+      case AppLog():
+      case PlainOutput():
+      case MachineResponse():
+      case OtherEvent():
+        break;
+    }
+  }
+
+  /// Logs [message] when it is only output; true then.
+  bool _logged(MachineMessage message) {
+    switch (message) {
+      case DaemonLog(:final message, :final isError):
+        _log.add(_source(isError), message);
       case AppLog(:final log, :final isError):
         _log.add(switch (isError) {
           true => LogSource.error,
           false => LogSource.app,
         }, log);
-      case AppStop(:final error):
-        if (error case final error?) _fail('App stopped: $error');
-        _log.add(LogSource.tool, 'App stopped');
-      case MachineResponse():
-      case OtherEvent():
-        break;
       case PlainOutput(:final text):
         _log.add(LogSource.app, text);
+      default:
+        return false;
     }
+    return true;
   }
 
   void _onExit(FlutterRun run, int code) {
@@ -241,12 +257,12 @@ final class RunViewModel extends ChangeNotifier {
     if (!expected && code != 0 && _error == null) {
       _error = 'flutter run exited with code $code';
     }
-    unawaited(_messages?.cancel());
-    unawaited(_errors?.cancel());
-    _messages = null;
-    _errors = null;
+    // Its output ends on its own; what still comes is logged.
     _run = null;
     _phase = RunPhase.idle;
+    // The run is over: what the window shows and what quitting shuts down
+    // no longer follow it.
+    _appName = null;
     _appId = null;
     _progress = null;
     _restarting = null;

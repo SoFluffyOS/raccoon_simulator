@@ -50,6 +50,17 @@ final class FakeProcess implements Process {
     ]),
   );
 
+  /// Exits with [code] while its output is still open, as a real process
+  /// can before its last lines are read; [closeOutput] ends that.
+  void exitBeforeOutput(int code) {
+    if (!_exit.isCompleted) _exit.complete(code);
+  }
+
+  Future<void> closeOutput() async {
+    await _stdout.close();
+    await _stderr.close();
+  }
+
   Future<void> exit(int code) async {
     await _stdout.close();
     await _stderr.close();

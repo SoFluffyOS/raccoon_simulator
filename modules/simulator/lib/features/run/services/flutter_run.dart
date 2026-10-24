@@ -24,7 +24,13 @@ final class FlutterRun {
     _stderr = _process.stderr
         .transform(utf8.decoder)
         .transform(const LineSplitter())
-        .listen(_errors.add, onDone: () => unawaited(_errors.close()));
+        .listen(
+          _errors.add,
+          onDone: () {
+            _stderrDone.complete();
+            unawaited(_errors.close());
+          },
+        );
     unawaited(_process.stdin.done.then<void>((_) {}, onError: (Object _) {}));
     unawaited(_process.exitCode.then(_onExit));
   }
@@ -48,6 +54,8 @@ final class FlutterRun {
   final _messages = StreamController<MachineMessage>();
   final _errors = StreamController<String>();
   final _pending = <int, Completer<MachineResponse>>{};
+  final _stdoutDone = Completer<void>();
+  final _stderrDone = Completer<void>();
   var _nextId = 1;
   var _exited = false;
 
@@ -58,7 +66,19 @@ final class FlutterRun {
   /// The tool's stderr, line by line.
   Stream<String> get errors => _errors.stream;
 
-  Future<int> get exitCode => _process.exitCode;
+  /// The tool's exit code, once its output is read too: the process can
+  /// exit before the last lines, such as why a build failed, are. A runner
+  /// the tool started can hold the pipes open, so that wait is short.
+  late final Future<int> exitCode = _process.exitCode.then((code) async {
+    await Future.wait([
+      _stdoutDone.future,
+      _stderrDone.future,
+    ]).timeout(outputGrace, onTimeout: () => const []);
+    return code;
+  });
+
+  /// How long [exitCode] waits for output after the process exited.
+  static const outputGrace = Duration(seconds: 1);
 
   int get pid => _process.pid;
 
@@ -91,7 +111,10 @@ final class FlutterRun {
     _messages.add(message);
   }
 
-  void _onOutputDone() => unawaited(_messages.close());
+  void _onOutputDone() {
+    _stdoutDone.complete();
+    unawaited(_messages.close());
+  }
 
   void _onExit(int code) {
     _exited = true;
