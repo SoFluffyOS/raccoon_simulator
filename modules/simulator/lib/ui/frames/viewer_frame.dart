@@ -117,6 +117,9 @@ class ViewerFrame extends StatelessWidget {
     if (session case final session?) {
       if (startup.failure case final failure?) {
         return StartupFailureMessage(
+          // A runner of its own: a report opened for the last one starts
+          // shut.
+          key: ObjectKey(session.client),
           name: name,
           failure: failure,
           plugins: startup.plugins,

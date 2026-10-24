@@ -104,21 +104,25 @@ final class RuntimeViewModel extends ChangeNotifier {
     _deviceIds = List.unmodifiable(
       _fixer.devices.ids().where((id) => id.startsWith('raccoon')),
     );
+    // Read once here: each device reads the tool's file, and a selector
+    // compares the same list.
+    _customDevices = List.unmodifiable([
+      for (final id in _deviceIds)
+        if (id != 'raccoon' && RaccoonDevice.forKey(id.substring(8)) == null)
+          ?_fixer.deviceFor(id),
+    ]);
     _notify();
   }
 
   List<String> _deviceIds = const [];
+  List<RaccoonDevice> _customDevices = const [];
 
   /// The Raccoon devices the Flutter tool lists, `raccoon` first.
   List<String> get deviceIds => _deviceIds;
 
   /// The devices of the user's own in the tool's list, neither `raccoon`
   /// nor a built-in one.
-  List<RaccoonDevice> get customDevices => [
-    for (final id in _deviceIds)
-      if (id != 'raccoon' && RaccoonDevice.forKey(id.substring(8)) == null)
-        ?_fixer.deviceFor(id),
-  ];
+  List<RaccoonDevice> get customDevices => _customDevices;
 
   /// Whether [device] is in the tool's list.
   bool hasDevice(RaccoonDevice device) => _deviceIds.contains(device.id);

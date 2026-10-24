@@ -214,6 +214,8 @@ void main() {
     expect(await runtime.setDevice(ipad, on: true), isTrue);
     expect(runtime.customDevices.map((d) => d.id), ['raccoon-ipad']);
     expect(runtime.customDevices.single.sizeArgument, '1024x1366@2');
+    // Read once a refresh: the same list until the next, for a selector.
+    expect(runtime.customDevices, same(runtime.customDevices));
 
     // Setting up again re-points what is there and adds nothing.
     await runtime.setUp();
