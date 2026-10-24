@@ -186,13 +186,17 @@ final class RuntimeViewModel extends ChangeNotifier {
     if (_settingUp || _fixing != null) return;
     _settingUp = true;
     _notify();
-    for (final kind in CheckKind.values) {
-      final check = _checkOf(kind);
-      if (check == null || check.passes) continue;
-      if (!await _fixAny(check.fixes)) break;
+    // Whatever goes wrong, setup ends: its spinner would block Run.
+    try {
+      for (final kind in CheckKind.values) {
+        final check = _checkOf(kind);
+        if (check == null || check.passes) continue;
+        if (!await _fixAny(check.fixes)) break;
+      }
+    } finally {
+      _settingUp = false;
+      _notify();
     }
-    _settingUp = false;
-    _notify();
   }
 
   /// Tries [fixes] in order until one works.

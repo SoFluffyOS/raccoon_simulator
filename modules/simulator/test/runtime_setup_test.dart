@@ -346,6 +346,29 @@ void main() {
     skip: !Platform.isWindows,
   );
 
+  // #132: a devices file that was not JSON threw from every read, and
+  // setup's spinner never stopped.
+  test(
+    'a devices file that is not JSON ends setup, with the fix failed',
+    () async {
+      releases.addRelease(
+        'runner-v0.3.1',
+        platforms: ['linux-x64', 'macos-arm64'],
+        archive: fakeRunnerArchive(version: '0.3.1'),
+      );
+      File(devices.path)
+        ..createSync(recursive: true)
+        ..writeAsStringSync('{"custom-devices": [');
+      final runtime = viewModel(commands());
+      expect(runtime.deviceIds, isEmpty);
+
+      await runtime.setUp();
+      expect(runtime.settingUp, isFalse);
+      expect(runtime.fixError, contains('FormatException'));
+      expect(File(devices.path).readAsStringSync(), '{"custom-devices": [');
+    },
+  );
+
   test('stops at the first fix that fails', () async {
     final fake = commands(failing: 'cmake');
     final runtime = viewModel(fake);
