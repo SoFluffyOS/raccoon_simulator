@@ -213,8 +213,17 @@ final class SessionService extends ChangeNotifier {
   @visibleForTesting
   Future<void> get settled => _work;
 
-  Future<void> _enqueue(Future<void> Function() task) =>
-      _work = _work.then((_) => task());
+  /// Runs [task] after the ones before it. A task that fails is logged and
+  /// does not stop the ones after it; who awaits it still sees the error.
+  Future<void> _enqueue(Future<void> Function() task) {
+    final result = _work.then((_) => task());
+    _work = result.then(
+      (_) {},
+      onError: (Object error, StackTrace stackTrace) =>
+          printError('a session task failed: $error', stackTrace),
+    );
+    return result;
+  }
 
   Future<void> _sync(List<UnixSocketEndpoint> endpoints, int generation) async {
     if (generation != _generation || _disposed) return;

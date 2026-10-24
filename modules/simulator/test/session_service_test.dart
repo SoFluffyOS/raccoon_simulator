@@ -250,4 +250,26 @@ void main() {
 
     await until(() => service.session('hello')?.pid == 2);
   });
+
+  // #132: one task that threw stopped every task after it.
+  test('a connect that fails oddly does not stop later ones', () async {
+    var attempts = 0;
+    final flaky = SessionService(
+      connect: (endpoint) {
+        attempts++;
+        if (attempts == 1) throw StateError('not a socket error');
+        return RunnerClient.connect(endpoint);
+      },
+      reconnectDelay: const Duration(milliseconds: 50),
+    );
+    addTearDown(flaky.dispose);
+    final runner = await FakeRunner.start(socket('hello'), pid: 7);
+    addTearDown(runner.stop);
+    flaky.follow([watched(temp.path)]);
+    await until(() => attempts == 1);
+    await flaky.retry().then((_) {}, onError: (Object _) {});
+
+    await until(() => flaky.session('hello') != null);
+    expect(flaky.session('hello')?.pid, 7);
+  });
 }
