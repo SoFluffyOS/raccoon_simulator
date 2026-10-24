@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:ffi' show Abi;
 import 'dart:io';
+import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
@@ -42,9 +44,16 @@ final class RunnerRelease {
 /// root. Nothing here sets a quarantine attribute, so the binary runs on
 /// macOS as it is.
 final class RunnerDownloader {
-  RunnerDownloader({Uri? releases, String? platform})
-    : releases = releases ?? defaultReleases,
-      platform = platform ?? hostPlatform;
+  RunnerDownloader({
+    Uri? releases,
+    String? platform,
+    this.stallTimeout = const Duration(seconds: 30),
+  }) : releases = releases ?? defaultReleases,
+       platform = platform ?? hostPlatform;
+
+  /// How long a connection or a download may go without a byte before it
+  /// counts as failed, rather than leave setup waiting for good.
+  final Duration stallTimeout;
 
   /// The Raccoon repository's releases, newest first, prereleases included.
   static final defaultReleases = Uri.parse(
@@ -120,38 +129,53 @@ final class RunnerDownloader {
   /// what was there. The binary and the tools come out executable.
   Future<void> install(RunnerRelease release, PrebuiltRunner into) async {
     final bytes = await _get(release.asset);
+    final directory = Directory(into.directory);
+    final staging = '${directory.path}.partial';
+    // Decoding and writing a runner's archive takes long enough to freeze
+    // the window, so it runs on its own isolate.
+    final binary = p.basename(into.binary);
+    await Isolate.run(
+      () => _unpack(bytes, release.asset, staging, binary),
+    );
+    if (directory.existsSync()) directory.deleteSync(recursive: true);
+    Directory(staging).renameSync(directory.path);
+  }
+
+  /// Unpacks the tar.gz [bytes] into [staging], afresh; the files keep
+  /// their executable bit, [binary] always has one.
+  static void _unpack(
+    List<int> bytes,
+    Uri source,
+    String staging,
+    String binary,
+  ) {
     final Archive archive;
     try {
       archive = TarDecoder().decodeBytes(
         const GZipDecoder().decodeBytes(bytes),
       );
     } on Object catch (error) {
-      throw DownloadFailed('${release.asset} is not a tar.gz archive: $error');
+      throw DownloadFailed('$source is not a tar.gz archive: $error');
     }
-    final directory = Directory(into.directory);
-    final staging = Directory('${directory.path}.partial');
-    if (staging.existsSync()) staging.deleteSync(recursive: true);
-    staging.createSync(recursive: true);
+    final folder = Directory(staging);
+    if (folder.existsSync()) folder.deleteSync(recursive: true);
+    folder.createSync(recursive: true);
     for (final entry in archive) {
       if (!entry.isFile) continue;
-      final target = p.normalize(p.join(staging.path, entry.name));
+      final target = p.normalize(p.join(staging, entry.name));
       // An entry that would land outside the folder is left out.
-      if (!p.isWithin(staging.path, target)) continue;
+      if (!p.isWithin(staging, target)) continue;
       final file = File(target)
         ..parent.createSync(recursive: true)
         ..writeAsBytesSync(entry.content);
       if (entry.mode & _ownerExecutable != 0) _makeExecutable(file);
     }
-    final binary = File(p.join(staging.path, p.basename(into.binary)));
-    if (!binary.existsSync()) {
-      staging.deleteSync(recursive: true);
-      throw DownloadFailed(
-        'No ${p.basename(into.binary)} in ${release.asset}',
-      );
+    final made = File(p.join(staging, binary));
+    if (!made.existsSync()) {
+      folder.deleteSync(recursive: true);
+      throw DownloadFailed('No $binary in $source');
     }
-    _makeExecutable(binary);
-    if (directory.existsSync()) directory.deleteSync(recursive: true);
-    staging.renameSync(directory.path);
+    _makeExecutable(made);
   }
 
   static const _ownerExecutable = 0x40;
@@ -176,26 +200,33 @@ final class RunnerDownloader {
     Process.runSync('chmod', ['755', file.path]);
   }
 
-  static Future<List<int>> _get(Uri uri, {String? accept}) async {
-    final client = HttpClient()..userAgent = 'raccoon_simulator';
+  Future<List<int>> _get(Uri uri, {String? accept}) async {
+    final client = HttpClient()
+      ..userAgent = 'raccoon_simulator'
+      ..connectionTimeout = stallTimeout;
     try {
       final request = await client.getUrl(uri);
       if (accept case final accept?) {
         request.headers.set(HttpHeaders.acceptHeader, accept);
       }
-      final response = await request.close();
+      final response = await request.close().timeout(stallTimeout);
       if (response.statusCode != HttpStatus.ok) {
         throw DownloadFailed('${response.statusCode} for $uri');
       }
       final builder = BytesBuilder(copy: false);
-      await for (final chunk in response) {
+      await for (final chunk in response.timeout(stallTimeout)) {
         builder.add(chunk);
       }
       return builder.takeBytes();
     } on IOException catch (error) {
       throw DownloadFailed('$uri: $error');
+    } on TimeoutException {
+      throw DownloadFailed(
+        '$uri: nothing came for ${stallTimeout.inSeconds} seconds',
+      );
     } finally {
-      client.close();
+      // Forced: a stalled connection would otherwise stay open.
+      client.close(force: true);
     }
   }
 }

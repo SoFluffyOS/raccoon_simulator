@@ -275,6 +275,35 @@ void main() {
     );
   });
 
+  // #132: a download that stalled kept setup waiting for good.
+  test('a download that stalls fails instead of waiting for good', () async {
+    final stalled = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+    addTearDown(stalled.close);
+    stalled.listen((socket) {
+      socket.listen((_) {
+        // Headers and the start of the body, then nothing more.
+        socket.write(
+          'HTTP/1.1 200 OK\r\nContent-Length: 1000000\r\n\r\nabc',
+        );
+      });
+    });
+    final slow = RunnerDownloader(
+      releases: Uri.parse('http://127.0.0.1:${stalled.port}/releases'),
+      platform: 'linux-x64',
+      stallTimeout: const Duration(milliseconds: 300),
+    );
+    await expectLater(
+      slow.find(pinned).timeout(const Duration(seconds: 5)),
+      throwsA(
+        isA<DownloadFailed>().having(
+          (e) => e.message,
+          'message',
+          contains('nothing came'),
+        ),
+      ),
+    );
+  });
+
   test('reports a list that cannot be fetched or read', () async {
     final elsewhere = RunnerDownloader(
       releases: server.releasesUri.replace(path: '/nowhere'),
