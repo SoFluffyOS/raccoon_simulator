@@ -43,6 +43,9 @@ final class SimulatorServices {
         endpoint,
         composes: true,
         gpuBuffers: HostGpuTextures.forHost() != null,
+        // Pixel frames, where they come, into buffers the client keeps:
+        // the view copies what it shows when it decodes.
+        reusePixels: true,
       ),
       onConnected: const IdePlatformChannels().register,
     );
