@@ -12,12 +12,15 @@ void main() {
   late Directory temp;
   late SessionService service;
   late List<RunnerClient> connected;
+  late List<RunnerClient> served;
 
   setUp(() {
     temp = Directory.systemTemp.createTempSync('simulator_sessions');
     connected = [];
+    served = [];
     service = SessionService(
       connect: RunnerClient.connect,
+      serve: served.add,
       onConnected: connected.add,
       reconnectDelay: const Duration(milliseconds: 50),
     );
@@ -107,6 +110,16 @@ void main() {
 
     await until(() => service.isRefused('hello'));
     expect(service.session('hello'), isNull);
+    expect(connected, isEmpty);
+  });
+
+  test('channels are served before the hello, a refused runner too', () async {
+    final runner = await FakeRunner.start(socket('hello'), busyWith: 42);
+    addTearDown(runner.stop);
+    service.follow([watched(temp.path)]);
+
+    await until(() => service.isRefused('hello'));
+    expect(served, hasLength(1));
     expect(connected, isEmpty);
   });
 

@@ -47,7 +47,12 @@ final class SimulatorServices {
         // the view copies what it shows when it decodes.
         reusePixels: true,
       ),
-      onConnected: const IdePlatformChannels().register,
+      // The plugins with no implementation on the host answer as a phone
+      // would, permissions granted.
+      serve: (client) {
+        const IdePlatformChannels().register(client);
+        PluginStubs().register(client);
+      },
     );
     final runtime = RuntimeViewModel(
       host: host,

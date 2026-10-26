@@ -23,13 +23,22 @@ typedef RunnerConnector = Future<RunnerClient> Function(
 final class SessionService extends ChangeNotifier {
   SessionService({
     required RunnerConnector connect,
+    void Function(RunnerClient client)? serve,
     void Function(RunnerClient client)? onConnected,
     this.helloTimeout = const Duration(seconds: 5),
     this.reconnectDelay = const Duration(milliseconds: 300),
   }) : _connect = connect,
+       _serve = serve,
        _onConnected = onConnected;
 
   final RunnerConnector _connect;
+
+  /// Registers the channels a client answers, as soon as it is connected:
+  /// what the app asked before any client came reaches it with the
+  /// runner's hello. A runner that refuses the client gets them too.
+  final void Function(RunnerClient client)? _serve;
+
+  /// A client the runner took, after its hello.
   final void Function(RunnerClient client)? _onConnected;
 
   /// How long to wait for the runner's hello. A runner that hangs up first
@@ -262,6 +271,7 @@ final class SessionService extends ChangeNotifier {
       printLog('no runner behind ${endpoint.path}: ${error.message}');
       return;
     }
+    _serve?.call(client);
     // A runner another client has says so (RunnerBusy) and hangs up; its
     // hello fails rather than never coming. Either way it said no (#91).
     final saidHello = await Future.any([
