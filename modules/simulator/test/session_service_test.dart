@@ -103,14 +103,21 @@ void main() {
     expect(service.sessions, isEmpty);
   });
 
-  test('a runner held by another client is marked refused', () async {
-    final runner = await FakeRunner.start(socket('hello'), refuse: true);
-    addTearDown(runner.stop);
+  test('a runner that hangs up before its hello is not refused, and the '
+      'runner replacing its socket is taken', () async {
+    // It crashed or is quitting; only RunnerBusy says another client has
+    // it. Marked refused, a runner started again at the same path was
+    // never looked at.
+    final crashed = await FakeRunner.start(socket('hello'), refuse: true);
     service.follow([watched(temp.path)]);
+    await until(() => crashed.connections > 0);
+    expect(service.isRefused('hello'), isFalse);
 
-    await until(() => service.isRefused('hello'));
-    expect(service.session('hello'), isNull);
-    expect(connected, isEmpty);
+    await crashed.stop();
+    final again = await FakeRunner.start(socket('hello'), pid: 3);
+    addTearDown(again.stop);
+
+    await until(() => service.session('hello')?.pid == 3);
   });
 
   test('channels are served before the hello, a refused runner too', () async {
@@ -136,7 +143,7 @@ void main() {
   });
 
   test('retry connects once the other client let go', () async {
-    final busy = await FakeRunner.start(socket('hello'), refuse: true);
+    final busy = await FakeRunner.start(socket('hello'), busyWith: 42);
     service.follow([watched(temp.path)]);
     await until(() => service.isRefused('hello'));
 
@@ -234,7 +241,7 @@ void main() {
   });
 
   test('a refused editor run is shown so its message appears', () async {
-    final busy = await FakeRunner.start(socket('counter'), refuse: true);
+    final busy = await FakeRunner.start(socket('counter'), busyWith: 42);
     addTearDown(busy.stop);
     service.follow([watched(temp.path)]);
 
@@ -262,6 +269,22 @@ void main() {
     });
 
     await until(() => service.session('hello')?.pid == 2);
+  });
+
+  test('cancelFresh gives the app back to the runner already there', () async {
+    // A Run stopped during its build, or one whose build failed: the
+    // terminal's runner of the same app is still going, and is the app.
+    final terminal = await FakeRunner.start(socket('hello'), pid: 1);
+    addTearDown(terminal.stop);
+    service.follow([watched(temp.path)]);
+    await until(() => service.session('hello')?.pid == 1);
+
+    await Future<void>.delayed(const Duration(milliseconds: 1100));
+    service.expectFresh('hello', since: DateTime.now());
+    await until(() => service.session('hello') == null);
+
+    service.cancelFresh('hello');
+    await until(() => service.session('hello')?.pid == 1);
   });
 
   // #132: one task that threw stopped every task after it.

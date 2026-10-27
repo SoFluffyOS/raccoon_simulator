@@ -36,6 +36,9 @@ final class FakeProcess implements Process {
 
   void emit(String line) => _stdout.add(utf8.encode('$line\n'));
 
+  /// [bytes] on stdout as they are, UTF-8 or not.
+  void emitBytes(List<int> bytes) => _stdout.add(bytes);
+
   void emitError(String line) => _stderr.add(utf8.encode('$line\n'));
 
   void emitEvent(String event, Map<String, Object?> params) => emit(

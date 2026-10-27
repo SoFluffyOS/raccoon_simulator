@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:simulator/features/run/run.dart';
 
@@ -80,6 +82,22 @@ void main() {
     });
     await pump();
     expect(viewModel.progress, startsWith('Launching'));
+  });
+
+  test('output that is not UTF-8 is logged, and what follows it too', () async {
+    // An app printing in a Windows code page threw from the decoder, and
+    // the chunk's lines, a response among them, were lost.
+    final uncaught = <Object>[];
+    await runZonedGuarded(() async {
+      await startApp();
+      process
+        ..emitBytes([...'caf'.codeUnits, 0xe9, 0x0a])
+        ..emit('after');
+      await pump();
+    }, (error, _) => uncaught.add(error));
+    final app = log.lines.where((line) => line.source == LogSource.app);
+    expect(app.map((line) => line.text), containsAll(['caf\u{fffd}', 'after']));
+    expect(uncaught, isEmpty);
   });
 
   test('logs plain lines as app output and stderr as errors', () async {

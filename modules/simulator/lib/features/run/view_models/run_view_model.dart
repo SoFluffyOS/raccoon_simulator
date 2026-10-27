@@ -113,6 +113,9 @@ final class RunViewModel extends ChangeNotifier {
       return;
     }
     _run = run;
+    // An earlier run whose pipes a runner holds open logs here no more.
+    unawaited(_messages?.cancel());
+    unawaited(_errors?.cancel());
     _messages = run.messages.listen((message) => _onMessage(run, message));
     _errors = run.errors.listen((line) => _log.add(LogSource.error, line));
     unawaited(run.exitCode.then((code) => _onExit(run, code)));

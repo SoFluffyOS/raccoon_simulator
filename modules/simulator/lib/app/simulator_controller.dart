@@ -33,6 +33,15 @@ final class SimulatorController {
     final sdk = runtime.sdk;
     if (runBlocker != null || chosen == null || sdk == null) return;
     sessions.expectFresh(chosen.appName, since: DateTime.now());
+    // A run that ends before its runner came (stopped, a failed build)
+    // gives the app back to a runner already there.
+    void ended() {
+      if (run.isActive) return;
+      run.removeListener(ended);
+      sessions.cancelFresh(chosen.appName);
+    }
+
+    run.addListener(ended);
     await run.run(
       directory: chosen.directory,
       appName: chosen.appName,
@@ -56,13 +65,18 @@ final class SimulatorController {
   }
 
   /// Starts the project as soon as it and the runtime are ready, for
-  /// `--run` on the command line. Gives up after [timeout].
+  /// `--run` on the command line. Gives up [timeout] after the runtime's
+  /// setup is done: a first one downloads and may build for minutes.
   Future<void> startWhenReady({
     Duration timeout = const Duration(seconds: 30),
   }) async {
-    final deadline = DateTime.now().add(timeout);
+    var deadline = DateTime.now().add(timeout);
     while (runBlocker != null) {
-      if (run.isActive || DateTime.now().isAfter(deadline)) return;
+      if (run.isActive) return;
+      if (runtime.settingUp) {
+        deadline = DateTime.now().add(timeout);
+      }
+      if (DateTime.now().isAfter(deadline)) return;
       await Future<void>.delayed(const Duration(milliseconds: 200));
     }
     await start();

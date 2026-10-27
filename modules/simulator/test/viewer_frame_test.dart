@@ -346,7 +346,7 @@ void main() {
       await openProject('hello');
       busy = await FakeRunner.start(
         p.join(temp.path, 'hello.sock'),
-        refuse: true,
+        busyWith: 42,
       );
       sessions.follow([watched(temp.path)]);
       await until(() => sessions.isRefused('hello'));

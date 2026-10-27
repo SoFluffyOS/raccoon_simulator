@@ -17,12 +17,15 @@ typedef ProcessStarter = Future<Process> Function(
 /// sent to it with their responses.
 final class FlutterRun {
   FlutterRun(this._process) {
+    // Lenient: an app may print bytes that are not UTF-8 (a Windows code
+    // page), which would otherwise throw and take the chunk's lines, a
+    // response among them, with it.
     _stdout = _process.stdout
-        .transform(utf8.decoder)
+        .transform(const Utf8Decoder(allowMalformed: true))
         .transform(const LineSplitter())
         .listen(_onLine, onDone: _onOutputDone);
     _stderr = _process.stderr
-        .transform(utf8.decoder)
+        .transform(const Utf8Decoder(allowMalformed: true))
         .transform(const LineSplitter())
         .listen(
           _errors.add,
@@ -83,7 +86,9 @@ final class FlutterRun {
   int get pid => _process.pid;
 
   /// Sends [method] and waits for its response. Completes with an error
-  /// response when the process exits first.
+  /// response when the process exits first, or answers nothing within
+  /// [requestTimeout]: a response lost in the output would otherwise hold
+  /// hot reload off for the rest of the run.
   Future<MachineResponse> request(
     String method, [
     Map<String, Object?> params = const {},
@@ -97,8 +102,20 @@ final class FlutterRun {
     final completer = Completer<MachineResponse>();
     _pending[id] = completer;
     _process.stdin.writeln(MachineProtocol.encodeRequest(id, method, params));
-    return completer.future;
+    return completer.future.timeout(
+      requestTimeout,
+      onTimeout: () {
+        _pending.remove(id);
+        return MachineResponse(
+          id: id,
+          error: 'flutter run did not answer $method',
+        );
+      },
+    );
   }
+
+  /// How long [request] waits: past any hot restart.
+  static const requestTimeout = Duration(minutes: 1);
 
   /// Ends the process without asking the app to stop first.
   bool kill() => _process.kill();

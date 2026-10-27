@@ -182,6 +182,19 @@ final class SessionService extends ChangeNotifier {
     _freshPoll ??= Timer.periodic(freshPollInterval, (_) => _pollFresh());
   }
 
+  /// Drops what [expectFresh] asked for [name]: the run it was for ended
+  /// before a fresh runner came, so a runner already there (the editor's or
+  /// the terminal's) is the app again.
+  void cancelFresh(String name) {
+    if (_freshSince.remove(name) == null) return;
+    if (_freshSince.isEmpty) {
+      _freshPoll?.cancel();
+      _freshPoll = null;
+    }
+    final generation = _generation;
+    unawaited(_enqueue(() => _sync(_listAll(), generation)));
+  }
+
   /// How often old sockets are looked at again, see [expectFresh].
   static const freshPollInterval = Duration(milliseconds: 250);
 
@@ -272,21 +285,27 @@ final class SessionService extends ChangeNotifier {
       return;
     }
     _serve?.call(client);
-    // A runner another client has says so (RunnerBusy) and hangs up; its
-    // hello fails rather than never coming. Either way it said no (#91).
-    final saidHello = await Future.any([
-      client.hello.then((_) => true, onError: (Object _) => false),
-      client.closed.then((_) => false),
+    // A runner another client has says so (RunnerBusy) and hangs up (#91).
+    // One that hangs up without saying so crashed or is quitting: not
+    // refused, so the runner that replaces its socket is taken.
+    final hello = await Future.any<Object>([
+      client.hello.then<Object>((_) => true, onError: (Object error) => error),
+      client.closed.then<Object>((_) => false),
     ]).timeout(helloTimeout, onTimeout: () => true);
     if (generation != _generation || _disposed) {
       await client.close();
       return;
     }
-    if (!saidHello) {
+    if (hello is RunnerBusy) {
       printLog('runner $name refused the connection; another client has it');
       _refused.add(name);
       await client.close();
       _notify();
+      return;
+    }
+    if (hello != true) {
+      printLog('runner $name hung up before its hello');
+      await client.close();
       return;
     }
     _onConnected?.call(client);
