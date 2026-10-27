@@ -115,7 +115,7 @@ final class FlutterRun {
   }
 
   /// How long [request] waits: past any hot restart.
-  static const requestTimeout = Duration(minutes: 1);
+  static const requestTimeout = Duration(minutes: 5);
 
   /// Ends the process without asking the app to stop first.
   bool kill() => _process.kill();
