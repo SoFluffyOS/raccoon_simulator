@@ -343,7 +343,7 @@ void main() {
       );
       expect(
         HostLocator.flutterSettings(linux),
-        p.join('/config', 'flutter', 'settings'),
+        p.join('/config', 'settings'),
       );
     });
 

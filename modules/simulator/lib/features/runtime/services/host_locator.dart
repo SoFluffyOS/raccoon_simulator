@@ -100,20 +100,10 @@ abstract final class HostLocator {
     );
   }
 
-  /// The tool's settings file, which holds `enable-custom-devices`:
-  /// `.flutter_settings` in `%APPDATA%` on Windows, `flutter/settings` in
-  /// the XDG config home elsewhere.
-  static String flutterSettings(HostInfo host) {
-    if (host.isWindows) {
-      return p.windows.join(
-        host.environment['APPDATA'] ?? host.home,
-        '.flutter_settings',
-      );
-    }
-    final configHome = switch (host.environment['XDG_CONFIG_HOME']) {
-      final dir? when dir.isNotEmpty => dir,
-      _ => p.join(host.home, '.config'),
-    };
-    return p.join(configHome, 'flutter', 'settings');
-  }
+  /// The tool's settings file, which holds `enable-custom-devices`, where
+  /// the tool itself keeps it.
+  static String flutterSettings(HostInfo host) => FlutterSettings.forHost(
+    host.environment,
+    operatingSystem: host.operatingSystem,
+  ).path;
 }
