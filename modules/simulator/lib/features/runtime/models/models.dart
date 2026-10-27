@@ -3,5 +3,4 @@ export 'package:simulator/features/runtime/models/flutter_sdk.dart';
 export 'package:simulator/features/runtime/models/host_info.dart';
 export 'package:simulator/features/runtime/models/prebuilt_runner.dart';
 export 'package:simulator/features/runtime/models/runner_paths.dart';
-export 'package:simulator/features/runtime/models/runner_version.dart';
 export 'package:simulator/features/runtime/models/runtime_check.dart';

@@ -5,7 +5,6 @@ import 'package:raccoon_runtime/raccoon_runtime.dart';
 import 'package:simulator/features/runtime/models/models.dart';
 import 'package:simulator/features/runtime/services/command_runner.dart';
 import 'package:simulator/features/runtime/services/host_locator.dart';
-import 'package:simulator/features/runtime/services/runner_downloader.dart';
 
 /// A fix that did not work, with what to tell the user.
 final class FixFailed implements Exception {
@@ -29,7 +28,8 @@ final class RuntimeFixer {
     PrebuiltRunner? prebuilt,
   }) : store = store ?? RuntimeStore.forHost(host.environment),
        devices = devices ?? CustomDevicesFile.forHost(host.environment),
-       downloader = downloader ?? RunnerDownloader(),
+       downloader =
+           downloader ?? RunnerDownloader(userAgent: 'raccoon_simulator'),
        prebuilt = prebuilt ?? HostLocator.prebuiltRunner(host);
 
   final HostInfo host;
