@@ -326,11 +326,14 @@ void main() {
       await mine.stop();
       await theirs.stop();
     });
+    final since = Stopwatch()..start();
     owning.follow([watched(temp.path)]);
 
     await until(() => owning.session('mine') != null);
     expect(owning.session('theirs'), isNull);
     await until(() => owning.session('theirs') != null);
+    // Not before its grace.
+    expect(since.elapsed, greaterThanOrEqualTo(const Duration(seconds: 1)));
   });
 
   test(
