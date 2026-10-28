@@ -275,6 +275,7 @@ final class SessionService extends ChangeNotifier {
   Future<void> _sync(List<UnixSocketEndpoint> endpoints, int generation) async {
     if (generation != _generation || _disposed) return;
     final present = <String>{};
+    final owned = <(String, UnixSocketEndpoint)>[];
     for (final endpoint in endpoints) {
       final name = RunnerDiscovery.appNameOf(endpoint);
       present.add(name);
@@ -283,12 +284,12 @@ final class SessionService extends ChangeNotifier {
           _refused.contains(name) ||
           _waiting.containsKey(name);
       if (known) continue;
-      final owned =
+      final ownsIt =
           _graced.contains(name) ||
           _freshSince.containsKey(name) ||
           (ownsProject?.call(RunnerDiscovery.projectOf(name)) ?? true);
-      if (owned) {
-        await _open(name, endpoint, generation);
+      if (ownsIt) {
+        owned.add((name, endpoint));
         continue;
       }
       _waiting[name] = Timer(otherProjectGrace, () {
@@ -297,6 +298,11 @@ final class SessionService extends ChangeNotifier {
         unawaited(_enqueue(() => _sync(_allFound(), generation)));
       });
     }
+    // Together: one that never says hello holds none of the rest past an
+    // editor's grace.
+    await Future.wait([
+      for (final (name, endpoint) in owned) _open(name, endpoint, generation),
+    ]);
     for (final name in _waiting.keys.toList()) {
       if (present.contains(name)) continue;
       _waiting.remove(name)?.cancel();
@@ -384,6 +390,9 @@ final class SessionService extends ChangeNotifier {
   void _onClientClosed(RunnerSession session, int generation) {
     if (!identical(_sessions[session.name], session)) return;
     _sessions.remove(session.name);
+    // A new run under the same path is a new run: whose it is is asked
+    // again, not taken from the one that went.
+    _graced.remove(session.name);
     _unfollow(session.name);
     _notify();
     unawaited(

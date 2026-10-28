@@ -332,4 +332,29 @@ void main() {
     expect(owning.session('theirs'), isNull);
     await until(() => owning.session('theirs') != null);
   });
+
+  test(
+    'a run taken after the grace that goes waits out the grace again',
+    () async {
+      final owning = SessionService(
+        connect: RunnerClient.connect,
+        ownsProject: (_) => false,
+        otherProjectGrace: const Duration(milliseconds: 800),
+        reconnectDelay: const Duration(milliseconds: 50),
+      );
+      addTearDown(owning.dispose);
+      final theirs = await FakeRunner.start(socket('theirs'), pid: 3);
+      addTearDown(theirs.stop);
+      owning.follow([watched(temp.path)]);
+      await until(() => owning.session('theirs') != null);
+
+      // A new run under the same path: the editor that has its project gets
+      // the grace to take it first.
+      theirs.dropClients();
+      await until(() => owning.session('theirs') == null);
+      await Future<void>.delayed(const Duration(milliseconds: 400));
+      expect(owning.session('theirs'), isNull);
+      await until(() => owning.session('theirs') != null);
+    },
+  );
 }
