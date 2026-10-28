@@ -79,6 +79,14 @@ void main() {
     touch(prebuilt.versionFile, '$version\n');
   }
 
+  test('a runner unpacked without its device helper is not downloaded', () {
+    touch(prebuilt.binary);
+    touch(prebuilt.versionFile, '0.3.0\n');
+    expect(doctor.downloaded(), isNull);
+    touch(prebuilt.deviceHelper);
+    expect(doctor.downloaded()?.text, '0.3.0');
+  });
+
   Map<CheckKind, RuntimeCheck> check({
     FlutterSdk? withSdk,
     bool noSdk = false,

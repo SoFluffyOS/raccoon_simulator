@@ -54,11 +54,10 @@ final class RuntimeDoctor {
     return installed;
   }
 
-  /// The downloaded runner's version, or null when none is installed.
-  RunnerVersion? downloaded() {
-    if (!File(prebuilt.binary).existsSync()) return null;
-    return RunnerVersion.read(prebuilt.versionFile);
-  }
+  /// The downloaded runner's version, or null when none is installed: one
+  /// half unpacked (no device helper beside its binary) is none, so setup
+  /// downloads it again.
+  RunnerVersion? downloaded() => prebuilt.version;
 
   List<RuntimeCheck> check({
     required FlutterSdk? sdk,

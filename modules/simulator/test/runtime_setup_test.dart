@@ -415,6 +415,7 @@ void main() {
 
   test('one Download replaces a downloaded runner of another series', () async {
     touch(prebuilt.binary);
+    touch(prebuilt.deviceHelper);
     touch(prebuilt.versionFile, '0.2.0\n');
     releases.addRelease(
       'runner-v0.3.0',
@@ -436,6 +437,7 @@ void main() {
     () async {
       touch(checkout.runnerVersionFile, '0.3.0-pre.2\n');
       touch(prebuilt.binary);
+      touch(prebuilt.deviceHelper);
       touch(prebuilt.versionFile, '0.3.0-pre.1\n');
       releases
         ..addRelease(
