@@ -89,11 +89,11 @@ The `camera` plugin works on Raccoon. By default the runner shows a test pattern
 
 ## Good to know
 
-- **One client per runner**: if another tool connects to your app's runner first, the simulator says so. Close it there and press Retry.
-- **Plugins**: pure Dart ones, the clipboard and `url_launcher` work. No text input yet.
+- **One client per runner**: a run shows in one app at a time. The simulator takes runs of the project it has open at once, and others after two seconds, so an editor that shows runs too gets the ones it started. If another tool has your app's runner, the simulator says so: close it there and press Retry.
+- **Plugins and input**: pure Dart plugins, the clipboard and `url_launcher` work, and text fields take typing, composed input included.
 - **Shared config**: the Raccoon device lives in Flutter's global `~/.config/flutter/custom_devices.json`. Setup leaves an entry from another checkout alone.
 - **Logs**: Settings copies the tool's and your app's output, for a bug report.
-- **Rendering**: frames are software rendered and copied, as everywhere in Raccoon today.
+- **Rendering**: frames come as GPU buffers the window shows as they are (macOS, Linux and Windows), else rendered in software and copied.
 
 ## Contributing
 
