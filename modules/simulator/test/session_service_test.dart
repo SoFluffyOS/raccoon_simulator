@@ -308,4 +308,28 @@ void main() {
     await until(() => flaky.session('hello') != null);
     expect(flaky.session('hello')?.pid, 7);
   });
+
+  // Every client on the machine sees every runner, and a runner takes one:
+  // the simulator leaves another project's run to an editor that has it
+  // first.
+  test('a runner of the open project is taken at once, another only after '
+      'the grace', () async {
+    final owning = SessionService(
+      connect: RunnerClient.connect,
+      ownsProject: (project) => project == 'mine',
+      otherProjectGrace: const Duration(seconds: 1),
+    );
+    addTearDown(owning.dispose);
+    final mine = await FakeRunner.start(socket('mine'), pid: 1);
+    final theirs = await FakeRunner.start(socket('theirs'), pid: 2);
+    addTearDown(() async {
+      await mine.stop();
+      await theirs.stop();
+    });
+    owning.follow([watched(temp.path)]);
+
+    await until(() => owning.session('mine') != null);
+    expect(owning.session('theirs'), isNull);
+    await until(() => owning.session('theirs') != null);
+  });
 }

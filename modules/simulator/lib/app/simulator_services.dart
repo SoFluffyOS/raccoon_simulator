@@ -36,9 +36,14 @@ final class SimulatorServices {
       temporaryDirectory: host.temporaryDirectory,
       private: false,
     );
+    final project = ProjectViewModel(
+      settings: settings,
+      pickDirectory: pickDirectory,
+    );
     // Frames come as GPU buffers where the view has a native side to show
     // them through.
     final sessions = SessionService(
+      ownsProject: (name) => project.project?.appName == name,
       connect: (endpoint) => RunnerClient.connect(
         endpoint,
         composes: true,
@@ -64,10 +69,6 @@ final class SimulatorServices {
           sessions.follow([sockets.discovery, shared.discovery]),
     );
     final run = RunViewModel(log: log, start: startFlutter);
-    final project = ProjectViewModel(
-      settings: settings,
-      pickDirectory: pickDirectory,
-    );
     return SimulatorServices._(
       log: log,
       run: run,

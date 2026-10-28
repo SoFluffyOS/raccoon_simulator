@@ -27,9 +27,22 @@ final class SessionService extends ChangeNotifier {
     void Function(RunnerClient client)? onConnected,
     this.helloTimeout = const Duration(seconds: 5),
     this.reconnectDelay = const Duration(milliseconds: 300),
+    this.ownsProject,
+    this.otherProjectGrace = const Duration(seconds: 2),
   }) : _connect = connect,
        _serve = serve,
        _onConnected = onConnected;
+
+  /// Whether the simulator has the project open. Every client on the
+  /// machine (an editor, another simulator) sees every runner, and a
+  /// runner takes one: the simulator takes a runner of its own project (or
+  /// one its Run expects) at once, and another only after
+  /// [otherProjectGrace], so an editor that has that project gets its run,
+  /// and a run nobody else takes still shows here.
+  final bool Function(String project)? ownsProject;
+
+  /// How long a runner of another project is left for another client.
+  final Duration otherProjectGrace;
 
   final RunnerConnector _connect;
 
@@ -54,6 +67,9 @@ final class SessionService extends ChangeNotifier {
   // viewport can tell an app that stopped before its first frame.
   final _followed = <String, List<StreamSubscription<Object?>>>{};
   final _refused = <String>{};
+  // Runners of other projects waiting out their grace, and those past it.
+  final _waiting = <String, Timer>{};
+  final _graced = <String>{};
   final _freshSince = <String, DateTime>{};
   Timer? _freshPoll;
   final _watches = <StreamSubscription<List<UnixSocketEndpoint>>>[];
@@ -112,6 +128,7 @@ final class SessionService extends ChangeNotifier {
     };
     if (_sameDirectories(unique.keys.toList())) return;
     _generation++;
+    _cancelWaiting();
     _cancelWatches();
     _closeAll();
     _discoveries = unique.values.toList();
@@ -129,6 +146,14 @@ final class SessionService extends ChangeNotifier {
       );
     }
     notifyListeners();
+  }
+
+  void _cancelWaiting() {
+    for (final timer in _waiting.values) {
+      timer.cancel();
+    }
+    _waiting.clear();
+    _graced.clear();
   }
 
   bool _sameDirectories(List<String> next) {
@@ -253,9 +278,30 @@ final class SessionService extends ChangeNotifier {
     for (final endpoint in endpoints) {
       final name = RunnerDiscovery.appNameOf(endpoint);
       present.add(name);
-      final known = _sessions.containsKey(name) || _refused.contains(name);
-      if (!known) await _open(name, endpoint, generation);
+      final known =
+          _sessions.containsKey(name) ||
+          _refused.contains(name) ||
+          _waiting.containsKey(name);
+      if (known) continue;
+      final owned =
+          _graced.contains(name) ||
+          _freshSince.containsKey(name) ||
+          (ownsProject?.call(RunnerDiscovery.projectOf(name)) ?? true);
+      if (owned) {
+        await _open(name, endpoint, generation);
+        continue;
+      }
+      _waiting[name] = Timer(otherProjectGrace, () {
+        _waiting.remove(name);
+        _graced.add(name);
+        unawaited(_enqueue(() => _sync(_allFound(), generation)));
+      });
     }
+    for (final name in _waiting.keys.toList()) {
+      if (present.contains(name)) continue;
+      _waiting.remove(name)?.cancel();
+    }
+    _graced.retainWhere(present.contains);
     final gone = [
       for (final name in _sessions.keys)
         if (!present.contains(name)) name,
@@ -389,6 +435,7 @@ final class SessionService extends ChangeNotifier {
   void dispose() {
     _disposed = true;
     _generation++;
+    _cancelWaiting();
     _cancelWatches();
     _closeAll();
     super.dispose();
