@@ -291,7 +291,7 @@ void main() {
   test('a connect that fails oddly does not stop later ones', () async {
     var attempts = 0;
     final flaky = SessionService(
-      connect: (endpoint) {
+      connect: (endpoint, {yields = false, claims = false}) {
         attempts++;
         if (attempts == 1) throw StateError('not a socket error');
         return RunnerClient.connect(endpoint);
@@ -334,6 +334,31 @@ void main() {
     await until(() => owning.session('theirs') != null);
     // Not before its grace.
     expect(since.elapsed, greaterThanOrEqualTo(const Duration(seconds: 1)));
+  });
+
+  test('the open project\'s runs are claimed, others\' yielded', () async {
+    final asked = <String, (bool, bool)>{};
+    final owning = SessionService(
+      connect: (endpoint, {yields = false, claims = false}) {
+        asked[p.basename(endpoint.path)] = (yields, claims);
+        return RunnerClient.connect(endpoint);
+      },
+      ownsProject: (project) => project == 'mine',
+      otherProjectGrace: const Duration(milliseconds: 200),
+    );
+    addTearDown(owning.dispose);
+    final mine = await FakeRunner.start(socket('mine'), pid: 1);
+    final theirs = await FakeRunner.start(socket('theirs'), pid: 2);
+    addTearDown(() async {
+      await mine.stop();
+      await theirs.stop();
+    });
+    owning.follow([watched(temp.path)]);
+    await until(() => owning.session('theirs') != null);
+    expect(asked, {
+      'mine.sock': (false, true),
+      'theirs.sock': (true, false),
+    });
   });
 
   test(

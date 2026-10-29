@@ -6,10 +6,14 @@ import 'package:raccoon_runtime/raccoon_runtime.dart';
 import 'package:simulator/features/session/models/models.dart';
 import 'package:simulator/utils/utils.dart';
 
-/// Connects to a runner; [RunnerClient.connect] in the app.
+/// Connects to a runner; [RunnerClient.connect] in the app. [claims] for a
+/// run of the open project or one the simulator started, [yields] for one
+/// it took for want of another taker (see [RunnerClient.connect]).
 typedef RunnerConnector = Future<RunnerClient> Function(
-  UnixSocketEndpoint endpoint,
-);
+  UnixSocketEndpoint endpoint, {
+  bool yields,
+  bool claims,
+});
 
 /// Follows the runners in a few socket directories and keeps a client
 /// connected to each: the host's usual one, where a `flutter run -d raccoon`
@@ -275,7 +279,7 @@ final class SessionService extends ChangeNotifier {
   Future<void> _sync(List<UnixSocketEndpoint> endpoints, int generation) async {
     if (generation != _generation || _disposed) return;
     final present = <String>{};
-    final owned = <(String, UnixSocketEndpoint)>[];
+    final owned = <(String, UnixSocketEndpoint, bool)>[];
     for (final endpoint in endpoints) {
       final name = RunnerDiscovery.appNameOf(endpoint);
       present.add(name);
@@ -284,12 +288,13 @@ final class SessionService extends ChangeNotifier {
           _refused.contains(name) ||
           _waiting.containsKey(name);
       if (known) continue;
-      final ownsIt =
-          _graced.contains(name) ||
+      // Its own: a run it expects, or its open project's. One taken after
+      // the grace is held only until its own host claims it.
+      final claims =
           _freshSince.containsKey(name) ||
           (ownsProject?.call(RunnerDiscovery.projectOf(name)) ?? true);
-      if (ownsIt) {
-        owned.add((name, endpoint));
+      if (claims || _graced.contains(name)) {
+        owned.add((name, endpoint, claims));
         continue;
       }
       _waiting[name] = Timer(otherProjectGrace, () {
@@ -301,7 +306,8 @@ final class SessionService extends ChangeNotifier {
     // Together: one that never says hello holds none of the rest past an
     // editor's grace.
     await Future.wait([
-      for (final (name, endpoint) in owned) _open(name, endpoint, generation),
+      for (final (name, endpoint, claims) in owned)
+        _open(name, endpoint, generation, claims: claims),
     ]);
     for (final name in _waiting.keys.toList()) {
       if (present.contains(name)) continue;
@@ -324,14 +330,15 @@ final class SessionService extends ChangeNotifier {
   Future<void> _open(
     String name,
     UnixSocketEndpoint endpoint,
-    int generation,
-  ) async {
+    int generation, {
+    required bool claims,
+  }) async {
     if (_freshSince[name] case final since? when !_isFresh(endpoint, since)) {
       return;
     }
     final RunnerClient client;
     try {
-      client = await _connect(endpoint);
+      client = await _connect(endpoint, yields: !claims, claims: claims);
     } on SocketException catch (error) {
       printLog('no runner behind ${endpoint.path}: ${error.message}');
       return;

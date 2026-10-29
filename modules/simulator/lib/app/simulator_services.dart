@@ -44,14 +44,17 @@ final class SimulatorServices {
     // them through.
     final sessions = SessionService(
       ownsProject: (name) => project.project?.appName == name,
-      connect: (endpoint) => RunnerClient.connect(
-        endpoint,
-        composes: true,
-        gpuBuffers: HostGpuTextures.forHost() != null,
-        // Pixel frames, where they come, into buffers the client keeps:
-        // the view copies what it shows when it decodes.
-        reusePixels: true,
-      ),
+      connect: (endpoint, {yields = false, claims = false}) =>
+          RunnerClient.connect(
+            endpoint,
+            yields: yields,
+            claims: claims,
+            composes: true,
+            gpuBuffers: HostGpuTextures.forHost() != null,
+            // Pixel frames, where they come, into buffers the client keeps:
+            // the view copies what it shows when it decodes.
+            reusePixels: true,
+          ),
       // The plugins with no implementation on the host answer as a phone
       // would, permissions granted.
       serve: (client) {

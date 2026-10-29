@@ -30,10 +30,11 @@ void main() {
   setUp(() {
     temp = Directory.systemTemp.createTempSync('simulator_viewer');
     sessions = SessionService(
-      connect: (endpoint) => RunnerClient.connect(
-        endpoint,
-        startupGrace: const Duration(milliseconds: 50),
-      ),
+      connect: (endpoint, {yields = false, claims = false}) =>
+          RunnerClient.connect(
+            endpoint,
+            startupGrace: const Duration(milliseconds: 50),
+          ),
       reconnectDelay: const Duration(milliseconds: 50),
     );
     project = ProjectViewModel(settings: MemorySettingsStore());
