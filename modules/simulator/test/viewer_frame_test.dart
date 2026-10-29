@@ -29,6 +29,9 @@ void main() {
 
   setUp(() {
     temp = Directory.systemTemp.createTempSync('simulator_viewer');
+    // A socket directory as the device helper leaves it: on Linux Dart makes
+    // this one open to others, which discovery refuses in /tmp.
+    if (!Platform.isWindows) Process.runSync('chmod', ['700', temp.path]);
     sessions = SessionService(
       connect: (endpoint, {yields = false, claims = false}) =>
           RunnerClient.connect(
