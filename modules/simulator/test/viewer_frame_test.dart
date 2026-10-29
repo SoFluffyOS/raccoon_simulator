@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/widgets.dart';
@@ -191,6 +192,19 @@ void main() {
       });
     },
   );
+
+  testWidgets('the board shows a run the simulator starts from the click', (
+    tester,
+  ) async {
+    // Its tool still starting: no runner yet.
+    run.dispose();
+    run = RunViewModel(log: log, start: (_) => Completer<FlutterRun>().future);
+    viewer.toggleBoard();
+    await tester.pumpWidget(app());
+    unawaited(run.run(directory: temp.path, appName: 'wonders', flutter: 'f'));
+    await tester.pump();
+    expect(find.text('Starting flutter run'), findsOneWidget);
+  });
 
   testWidgets('the board shows every session, not just the shown app', (
     tester,

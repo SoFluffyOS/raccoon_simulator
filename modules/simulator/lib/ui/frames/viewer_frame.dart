@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/widgets.dart';
 import 'package:provider/provider.dart';
 import 'package:raccoon/raccoon.dart';
@@ -187,7 +189,8 @@ class ViewerFrame extends StatelessWidget {
 }
 
 /// Every session on the board. It rebuilds when the set of names changes;
-/// a session that comes back under its name keeps its frame.
+/// a session that comes back under its name keeps its frame. A run the
+/// simulator starts shows from the click, as starting, until its app comes.
 class _Board extends StatelessWidget {
   const _Board();
 
@@ -197,6 +200,15 @@ class _Board extends StatelessWidget {
       (service) => service.sessions.map((session) => session.name).join(' '),
     );
     final sessions = context.read<SessionService>().sessions;
+    final starting = context.select<RunViewModel, (String, String)?>(
+      (run) => switch ((run.phase, run.appName)) {
+        (RunPhase.starting, final name?) => (
+          name,
+          run.progress ?? 'Starting the app…',
+        ),
+        _ => null,
+      },
+    );
     final caption = context.fluffyTheme.typography.caption2;
     return ColoredBox(
       color: Palette.viewport,
@@ -208,6 +220,13 @@ class _Board extends StatelessWidget {
               name: session.name,
               connection: session.client,
               onClose: session.client.shutdown,
+            ),
+          if (starting case (final name, final status)
+              when !sessions.any((session) => session.name == name))
+            RaccoonBoardSession.starting(
+              name: name,
+              status: status,
+              onClose: () => unawaited(context.read<RunViewModel>().stop()),
             ),
         ],
         layout: context.read<BoardViewModel>(),
