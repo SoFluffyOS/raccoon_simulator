@@ -242,6 +242,8 @@ final class RuntimeDoctor {
       return decoded is Map && decoded['enable-custom-devices'] == true;
     } on FormatException {
       return false;
+    } on FileSystemException {
+      return false;
     }
   }
 
@@ -254,6 +256,8 @@ final class RuntimeDoctor {
     try {
       decoded = jsonDecode(file.readAsStringSync());
     } on FormatException {
+      return null;
+    } on FileSystemException {
       return null;
     }
     if (decoded case {'custom-devices': final List<Object?> entries}) {

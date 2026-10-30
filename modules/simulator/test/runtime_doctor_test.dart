@@ -216,6 +216,15 @@ void main() {
     expect(check()[CheckKind.device]?.status, CheckStatus.ok);
   });
 
+  // raccoon#306: a file that isn't UTF-8 threw out of the checks.
+  test('settings and devices that can\'t be read are none', () {
+    File(settings).writeAsBytesSync([0xff, 0xfe, 0x7b, 0x7d]);
+    File(devices.path).writeAsBytesSync([0xff, 0xfe, 0x7b, 0x7d]);
+    expect(doctor.customDevicesEnabled(), isFalse);
+    expect(doctor.registeredHelper(), isNull);
+    expect(check()[CheckKind.device]?.status, CheckStatus.missing);
+  });
+
   test('a device pointing at a missing helper fails', () {
     devices.upsert(CustomDeviceConfig(deviceHelper: '/gone/raccoon-device'));
     expect(check()[CheckKind.device]?.status, CheckStatus.missing);
