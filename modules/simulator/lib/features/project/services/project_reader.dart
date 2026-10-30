@@ -26,6 +26,8 @@ abstract final class ProjectReader {
       yaml = loadYaml(pubspec.readAsStringSync());
     } on YamlException catch (error) {
       throw ProjectError('pubspec.yaml does not parse: ${error.message}');
+    } on FileSystemException catch (error) {
+      throw ProjectError('pubspec.yaml can\'t be read: ${error.message}');
     }
     final name = switch (yaml) {
       {'name': final String name} when name.isNotEmpty => name,

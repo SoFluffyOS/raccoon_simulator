@@ -36,6 +36,20 @@ void main() {
       () => ProjectReader.read(temp.path),
       throwsA(isA<ProjectError>()),
     );
+    // raccoon#311: one that can't be read said nothing.
+    File(
+      p.join(project('unreadable'), 'pubspec.yaml'),
+    ).writeAsBytesSync([0xff, 0xfe, 0x6e]);
+    expect(
+      () => ProjectReader.read(p.join(temp.path, 'unreadable')),
+      throwsA(
+        isA<ProjectError>().having(
+          (e) => e.message,
+          'message',
+          contains('can\'t be read'),
+        ),
+      ),
+    );
   });
 
   test('opening a project puts it first in the recent list', () async {
