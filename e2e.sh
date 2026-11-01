@@ -12,6 +12,7 @@ cd "$(dirname "$0")"
 
 case "$(uname -s)" in
   Darwin) desktop=macos ;;
+  MINGW*|MSYS*|CYGWIN*) desktop=windows ;;
   *) desktop=linux ;;
 esac
 

@@ -7,7 +7,7 @@
 // else from the window, where a GPU buffer frame shows through the host's
 // texture.
 //
-//   flutter test integration_test/hello_e2e_test.dart -d <linux or macos> \
+//   flutter test integration_test/hello_e2e_test.dart -d <linux, macos or windows> \
 //     [--dart-define=RACCOON_E2E_PROJECT=<folder of a hello-like app>] \
 //     [--dart-define=RACCOON_E2E_SCREENSHOTS=<folder for PNGs>]
 import 'dart:async';
