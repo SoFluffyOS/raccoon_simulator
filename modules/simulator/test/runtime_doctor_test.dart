@@ -360,7 +360,7 @@ void main() {
       );
       expect(
         HostLocator.flutterSettings(linux),
-        p.join('/config', 'settings'),
+        p.posix.join('/config', 'settings'),
       );
     });
 
