@@ -11,12 +11,14 @@ final class SimulatorController {
     required this.runtime,
     required this.run,
     required this.sessions,
+    required this.agentRuns,
   });
 
   final ProjectViewModel project;
   final RuntimeViewModel runtime;
   final RunViewModel run;
   final SessionService sessions;
+  final AgentRuns agentRuns;
 
   /// Why Run is unavailable, or null when it can start.
   String? get runBlocker {
@@ -25,6 +27,10 @@ final class SimulatorController {
     if (runtime.settingUp) return 'Setting up the runtime';
     if (!runtime.isReady) return 'Fix the runtime setup first';
     if (project.project == null) return 'Open a Flutter project first';
+    if (project.project case final chosen?
+        when agentRuns.run(chosen.appName) != null) {
+      return 'An agent runs it';
+    }
     return null;
   }
 

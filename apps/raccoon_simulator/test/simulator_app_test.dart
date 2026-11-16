@@ -28,7 +28,13 @@ void main() {
       host: bareHost(),
       settings: MemorySettingsStore(),
     );
-    await tester.pumpWidget(SimulatorApp(services: services));
+    // No control endpoint: it would listen, and leave its file, for real.
+    await tester.pumpWidget(
+      SimulatorApp(
+        services: services,
+        options: const SimulatorOptions(control: false),
+      ),
+    );
     await tester.runAsync(() => Future<void>.delayed(Duration.zero));
     await tester.pump();
     return services;

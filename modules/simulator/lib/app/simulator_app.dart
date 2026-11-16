@@ -61,14 +61,14 @@ class _SimulatorAppState extends State<SimulatorApp> {
   }
 
   Future<void> _exitOnSignal() async {
-    await _services.controller.stop();
+    await _services.shutDown();
     exit(0);
   }
 
   /// Stops a running app before the window closes, so neither the tool nor
   /// the runner outlives the simulator.
   Future<AppExitResponse> _onExitRequested() async {
-    await _services.controller.stop();
+    await _services.shutDown();
     return AppExitResponse.exit;
   }
 
@@ -89,6 +89,7 @@ class _SimulatorAppState extends State<SimulatorApp> {
       providers: [
         ChangeNotifierProvider.value(value: _services.log),
         ChangeNotifierProvider.value(value: _services.run),
+        ChangeNotifierProvider.value(value: _services.agentRuns),
         ChangeNotifierProvider.value(value: _services.sessions),
         ChangeNotifierProvider.value(value: _services.runtime),
         ChangeNotifierProvider.value(value: _services.project),

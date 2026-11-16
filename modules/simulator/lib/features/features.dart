@@ -1,4 +1,5 @@
 export 'package:simulator/features/board/board.dart';
+export 'package:simulator/features/control/control.dart';
 export 'package:simulator/features/project/project.dart';
 export 'package:simulator/features/run/run.dart';
 export 'package:simulator/features/runtime/runtime.dart';

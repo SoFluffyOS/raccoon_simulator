@@ -84,8 +84,15 @@ The `camera` plugin works on Raccoon. By default the runner shows a test pattern
 | `[project folder]` | Opens a project at launch |
 | `--run` | Runs it once the runtime is ready |
 | `--no-setup` | Skips the setup at launch |
+| `--no-control` | Serves no control endpoint for agents |
 | `FLUTTER_ROOT` | Picks the Flutter SDK (otherwise `flutter` on the `PATH`, then FVM's default) |
 | `RACCOON_SIMULATOR_ROOT` | Points at this checkout when the app runs from somewhere else |
+
+## Agents on the board
+
+Coding agents drive the board through [raccoon_mcp](https://github.com/SoFluffyOS/raccoon/tree/main/packages/raccoon_mcp), an MCP server: they run a project on `raccoon-phone` and `raccoon-tablet`, take screenshots, tap, type, resize and reload, and you watch each step happen. The board comes up on the first action, an agent's run shows from the call, and each action is a line in the log (`Agent: tap 195, 422 on hello@phone`).
+
+The simulator serves this on a control endpoint for your user alone: HTTP on `127.0.0.1` at a port of the system's choosing, with a token, both in a file only you can read (`$XDG_RUNTIME_DIR/raccoon/control/` on Linux, the temporary folder's `raccoon/control/` elsewhere). It goes with the window, or never starts with `--no-control`.
 
 ## Good to know
 

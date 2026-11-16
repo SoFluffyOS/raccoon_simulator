@@ -23,6 +23,7 @@ void main() {
   late ProjectViewModel project;
   late RunLog log;
   late RunViewModel run;
+  late AgentRuns agentRuns;
   late ViewerViewModel viewer;
   late BoardViewModel board;
   late RuntimeViewModel runtime;
@@ -40,6 +41,7 @@ void main() {
     project = ProjectViewModel(settings: MemorySettingsStore());
     log = RunLog();
     run = RunViewModel(log: log);
+    agentRuns = AgentRuns(log: log);
     viewer = ViewerViewModel();
     board = BoardViewModel(settings: MemorySettingsStore());
     final host = HostInfo(
@@ -64,6 +66,7 @@ void main() {
     sessions.dispose();
     project.dispose();
     run.dispose();
+    agentRuns.dispose();
     log.dispose();
     viewer.dispose();
     board.dispose();
@@ -84,6 +87,7 @@ void main() {
       ChangeNotifierProvider.value(value: sessions),
       ChangeNotifierProvider.value(value: project),
       ChangeNotifierProvider.value(value: run),
+      ChangeNotifierProvider.value(value: agentRuns),
       ChangeNotifierProvider.value(value: viewer),
       ChangeNotifierProvider.value(value: board),
       ChangeNotifierProvider.value(value: runtime),

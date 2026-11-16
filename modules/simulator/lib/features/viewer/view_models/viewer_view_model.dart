@@ -15,6 +15,13 @@ final class ViewerViewModel extends ChangeNotifier {
 
   bool get boardOn => _boardOn;
 
+  /// Shows the board, where every running device is, if it is not shown.
+  void showBoard() {
+    if (_boardOn) return;
+    _boardOn = true;
+    notifyListeners();
+  }
+
   void toggleBoard() {
     _boardOn = !_boardOn;
     notifyListeners();

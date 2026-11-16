@@ -5,6 +5,8 @@ void main() {
   test('sets up at launch unless told not to', () {
     expect(SimulatorOptions.parse(const []).setUp, isTrue);
     expect(SimulatorOptions.parse(const ['--no-setup']).setUp, isFalse);
+    expect(SimulatorOptions.parse(const []).control, isTrue);
+    expect(SimulatorOptions.parse(const ['--no-control']).control, isFalse);
   });
 
   test('reads the project folder and --run', () {

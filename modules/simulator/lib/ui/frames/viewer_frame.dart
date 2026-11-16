@@ -209,6 +209,14 @@ class _Board extends StatelessWidget {
         _ => null,
       },
     );
+    // An agent's runs show from the call, as starting, until their apps come.
+    context.select<AgentRuns, String>(
+      (runs) => [
+        for (final run in runs.runs)
+          if (run.phase == RunPhase.starting) '${run.name} ${run.progress}',
+      ].join('\n'),
+    );
+    final agentRuns = context.read<AgentRuns>();
     final caption = context.fluffyTheme.typography.caption2;
     return ColoredBox(
       color: Palette.viewport,
@@ -228,6 +236,14 @@ class _Board extends StatelessWidget {
               status: status,
               onClose: () => unawaited(context.read<RunViewModel>().stop()),
             ),
+          for (final run in agentRuns.runs)
+            if (run.phase == RunPhase.starting &&
+                !sessions.any((session) => session.name == run.name))
+              RaccoonBoardSession.starting(
+                name: run.name,
+                status: run.progress ?? 'Starting the app…',
+                onClose: () => unawaited(agentRuns.stop(run.name)),
+              ),
         ],
         layout: context.read<BoardViewModel>(),
         ink: Palette.textMuted,

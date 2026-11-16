@@ -35,8 +35,10 @@ dart format apps modules && flutter analyze   # never format the submodules
 
 - `features/<name>/` with `models/`, `services/`, `view_models/`, `ui/{frames,widgets}`:
   `project` (picker, recents), `runtime` (checks, fixes, setup at launch),
-  `run` (machine protocol, `flutter run` process, log), `session` (runner
-  discovery and clients, the app shown), `viewer` (size presets, viewport).
+  `run` (machine protocol, `flutter run` process, log, agents' runs),
+  `session` (runner discovery and clients, the app shown), `viewer` (size
+  presets, viewport), `board` (where each device sits), `control` (the
+  control endpoint's host, for agents).
 - `app/`: `SimulatorServices` wires everything, `SimulatorController` holds the
   actions that span features, `SimulatorApp` is the window.
 - `ui/`: cross-feature frames (toolbar, viewer), the settings dialog, the

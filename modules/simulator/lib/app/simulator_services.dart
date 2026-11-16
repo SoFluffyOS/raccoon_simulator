@@ -6,6 +6,7 @@ import 'package:simulator/app/simulator_controller.dart';
 import 'package:simulator/app/simulator_options.dart';
 import 'package:simulator/features/features.dart';
 import 'package:simulator/services/services.dart';
+import 'package:simulator/utils/utils.dart';
 
 /// Every view model and service of one simulator window, wired together.
 final class SimulatorServices {
@@ -19,6 +20,8 @@ final class SimulatorServices {
     required this.board,
     required this.controller,
     required this.chrome,
+    required this.agentRuns,
+    required this.control,
   });
 
   factory SimulatorServices.create({
@@ -72,23 +75,40 @@ final class SimulatorServices {
           sessions.follow([sockets.discovery, shared.discovery]),
     );
     final run = RunViewModel(log: log, start: startFlutter);
+    final agentRuns = AgentRuns(log: log, start: startFlutter);
+    final viewer = ViewerViewModel();
+    final board = BoardViewModel(
+      settings: settings,
+      sizes: AppSizes.forHost(host.environment),
+    );
+    final controller = SimulatorController(
+      project: project,
+      runtime: runtime,
+      run: run,
+      sessions: sessions,
+      agentRuns: agentRuns,
+    );
     return SimulatorServices._(
       log: log,
       run: run,
       sessions: sessions,
       runtime: runtime,
       project: project,
-      viewer: ViewerViewModel(),
-      board: BoardViewModel(
-        settings: settings,
-        sizes: AppSizes.forHost(host.environment),
-      ),
+      viewer: viewer,
+      board: board,
       chrome: WindowChrome(toolbarIsTitleBar: host.operatingSystem == 'macos'),
-      controller: SimulatorController(
-        project: project,
-        runtime: runtime,
-        run: run,
+      controller: controller,
+      agentRuns: agentRuns,
+      control: SimulatorControlHost(
         sessions: sessions,
+        hostRun: run,
+        agentRuns: agentRuns,
+        runtime: runtime,
+        board: board,
+        viewer: viewer,
+        log: log,
+        environment: host.environment,
+        stopHostRun: controller.stop,
       ),
     );
   }
@@ -103,6 +123,15 @@ final class SimulatorServices {
   final SimulatorController controller;
   final WindowChrome chrome;
 
+  /// The runs agents started through the control endpoint.
+  final AgentRuns agentRuns;
+
+  /// What the control endpoint serves.
+  final SimulatorControlHost control;
+
+  RaccoonControlServer? _server;
+  var _disposed = false;
+
   /// Checks the runtime and sets up what is missing, restores the recent
   /// projects, and applies [options].
   Future<void> init(SimulatorOptions options) async {
@@ -112,6 +141,39 @@ final class SimulatorServices {
     await board.load(project.project?.directory);
     project.addListener(_projectChanged);
     if (options.run) unawaited(controller.startWhenReady());
+    if (options.control) await _serveControl();
+  }
+
+  /// Serves [control] on the loopback interface, for this user's agents;
+  /// see [RaccoonControlServer].
+  Future<void> _serveControl() async {
+    try {
+      final server = await RaccoonControlServer.start(
+        RaccoonControl(control),
+        kind: control.kind,
+      );
+      if (_disposed) {
+        await server.close();
+        return;
+      }
+      _server = server;
+      printLog('control endpoint at ${server.uri}, see ${server.file.path}');
+    } on Object catch (error, stackTrace) {
+      printError('the control endpoint did not start: $error', stackTrace);
+    }
+  }
+
+  /// Closes the control endpoint, then stops the toolbar's run and the
+  /// agents' runs, and their runners: before the process exits.
+  Future<void> shutDown() async {
+    final server = _server;
+    _server = null;
+    await server?.close();
+    final names = [for (final run in agentRuns.runs) run.name];
+    await Future.wait([controller.stop(), agentRuns.stopAll()]);
+    for (final name in names) {
+      controller.shutDownRunner(name);
+    }
   }
 
   void _projectChanged() => unawaited(board.load(project.project?.directory));
@@ -119,8 +181,14 @@ final class SimulatorServices {
   /// Shuts the run's runner down before killing the tool, which would
   /// leave the runner behind.
   void dispose() {
+    _disposed = true;
+    unawaited(_server?.close());
     if (run.isActive) controller.shutDownRunner(run.appName);
+    for (final agentRun in agentRuns.runs) {
+      controller.shutDownRunner(agentRun.name);
+    }
     run.dispose();
+    agentRuns.dispose();
     sessions.dispose();
     runtime.dispose();
     project.dispose();
