@@ -97,6 +97,7 @@ void main() {
     expect(viewer.boardOn, isFalse);
     await control.call('tap', {'device': 'phone', 'x': 10, 'y': 20});
     expect(viewer.boardOn, isTrue);
+    expect(board.pendingReveal, 'hello@phone');
     expect(log.text, contains('Agent: tap 10, 20 on hello@phone'));
   });
 

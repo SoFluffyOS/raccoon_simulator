@@ -187,6 +187,7 @@ final class SimulatorControlHost implements RaccoonControlHost {
     while (clock.elapsed < runTimeout) {
       if (_app(name) case final app?
           when up && app.client.latestFrame != null) {
+        board.reveal(name);
         return app;
       }
       if (sessions.startupFailure(name) case final failure?) {
@@ -219,9 +220,11 @@ final class SimulatorControlHost implements RaccoonControlHost {
     sessions.session(name)?.client.shutdown();
   }
 
+  /// Brings the board up, and the app's frame into view on it.
   @override
   void announce(RaccoonControlApp? app, String action) {
     viewer.showBoard();
+    if (app != null) board.reveal(app.name);
     log.add(LogSource.tool, switch (app) {
       final app? => 'Agent: $action on ${app.name}',
       null => 'Agent: $action',
