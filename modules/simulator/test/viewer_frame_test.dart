@@ -322,6 +322,83 @@ void main() {
     await tester.runAsync(editorRun.stop);
   });
 
+  // raccoon#411: the runner's reason has no stack behind it; an exception
+  // the app threw does.
+  testWidgets('a run the runner stopped says so, not that nothing caught it', (
+    tester,
+  ) async {
+    late FakeRunner editorRun;
+    await tester.runAsync(() async {
+      editorRun = await FakeRunner.start(p.join(temp.path, 'counter.sock'));
+      sessions.follow([watched(temp.path)]);
+      await until(() => sessions.session('counter') != null);
+      editorRun.send(
+        logLine(
+          '🦝 the app did not start: built with another Flutter (Invalid '
+          'kernel binary format version (expected 141, found 138)); flutter '
+          'run -d raccoon builds it again',
+        ),
+      );
+      await until(
+        () => sessions.startupFailure('counter')?.didNotStart ?? false,
+      );
+    });
+    await tester.pumpWidget(app());
+
+    expect(
+      find.text('counter stopped before its first frame'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('flutter run -d raccoon builds it again'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('The runner stopped the run before the app ran.'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Nothing caught it'), findsNothing);
+
+    await tester.runAsync(editorRun.stop);
+  });
+
+  testWidgets('an exception main() died of points at the stack', (
+    tester,
+  ) async {
+    late FakeRunner editorRun;
+    await tester.runAsync(() async {
+      editorRun = await FakeRunner.start(p.join(temp.path, 'counter.sock'));
+      sessions.follow([watched(temp.path)]);
+      await until(() => sessions.session('counter') != null);
+      for (final line in [
+        '[ERROR:flutter/runtime/dart_vm_initializer.cc(40)] Unhandled '
+            'Exception: StateError: Bad state: no config',
+        '#0      main (package:counter/main.dart:24:5)',
+      ]) {
+        editorRun.send(logLine(line));
+      }
+      await until(
+        () =>
+            sessions.startupFailure('counter')?.stackTrace.isNotEmpty ?? false,
+      );
+    });
+    await tester.pumpWidget(app());
+
+    expect(
+      find.text(
+        "Nothing caught it before the first frame. The run's log has the "
+        'stack.',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.text('The runner stopped the run before the app ran.'),
+      findsNothing,
+    );
+
+    await tester.runAsync(editorRun.stop);
+  });
+
   // What the runner reports since raccoon#386 and #392: a window plugin left
   // out for want of the view, as no implementation with the reason; one that
   // stopped at CMake for want of a dev package, with the command.

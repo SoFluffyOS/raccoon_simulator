@@ -45,6 +45,9 @@ class _StartupFailureMessageState extends State<StartupFailureMessage> {
       null => 'Nothing answered ${failure.channels.join(', ')}.',
     };
     final why = switch (failure.exception) {
+      // The runner's reason, not something the app threw: no stack.
+      _ when failure.didNotStart =>
+        'The runner stopped the run before the app ran.',
       _ when failure.plugins.isNotEmpty =>
         'A plugin with nothing behind it on this host gets no reply, and '
             'the app did not catch the error.',
