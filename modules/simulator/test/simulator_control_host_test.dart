@@ -101,6 +101,40 @@ void main() {
     expect(log.text, contains('Agent: tap 10, 20 on hello@phone'));
   });
 
+  test(
+    'an app an agent drives is resumed while the window is hidden',
+    () async {
+      final visibility = WindowVisibility(
+        sessions: sessions,
+        inUseFor: const Duration(seconds: 5),
+      );
+      addTearDown(visibility.dispose);
+      final drives = RaccoonControl(
+        SimulatorControlHost(
+          sessions: sessions,
+          hostRun: hostRun,
+          agentRuns: agentRuns,
+          runtime: host.runtime,
+          board: board,
+          viewer: viewer,
+          log: log,
+          environment: {'XDG_DATA_HOME': temp.path},
+          stopHostRun: () async {},
+          visibility: visibility,
+        ),
+      );
+      visibility.windowChanged(AppLifecycleState.hidden);
+      await until(() => runner.appMessages.length == 1);
+
+      await drives.call('tap', {'device': 'phone', 'x': 10, 'y': 20});
+      await until(() => runner.appMessages.length == 2);
+      expect(runner.appMessages, [
+        'flutter/lifecycle AppLifecycleState.hidden',
+        'flutter/lifecycle AppLifecycleState.resumed',
+      ]);
+    },
+  );
+
   test('a resize sizes the board\'s frame, as its size menu does', () async {
     final app = host.apps().single;
     await app.resize((width: 400, height: 700, pixelRatio: 2));

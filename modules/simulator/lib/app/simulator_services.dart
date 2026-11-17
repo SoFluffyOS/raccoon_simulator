@@ -22,6 +22,7 @@ final class SimulatorServices {
     required this.chrome,
     required this.agentRuns,
     required this.control,
+    required this.visibility,
   });
 
   factory SimulatorServices.create({
@@ -81,6 +82,7 @@ final class SimulatorServices {
       settings: settings,
       sizes: AppSizes.forHost(host.environment),
     );
+    final visibility = WindowVisibility(sessions: sessions);
     final controller = SimulatorController(
       project: project,
       runtime: runtime,
@@ -109,7 +111,9 @@ final class SimulatorServices {
         log: log,
         environment: host.environment,
         stopHostRun: controller.stop,
+        visibility: visibility,
       ),
+      visibility: visibility,
     );
   }
 
@@ -128,6 +132,9 @@ final class SimulatorServices {
 
   /// What the control endpoint serves.
   final SimulatorControlHost control;
+
+  /// Tells the apps whether the window shows.
+  final WindowVisibility visibility;
 
   RaccoonControlServer? _server;
   var _disposed = false;
@@ -189,6 +196,7 @@ final class SimulatorServices {
     }
     run.dispose();
     agentRuns.dispose();
+    visibility.dispose();
     sessions.dispose();
     runtime.dispose();
     project.dispose();

@@ -37,7 +37,10 @@ class _SimulatorAppState extends State<SimulatorApp> {
   @override
   void initState() {
     super.initState();
-    _lifecycle = AppLifecycleListener(onExitRequested: _onExitRequested);
+    _lifecycle = AppLifecycleListener(
+      onExitRequested: _onExitRequested,
+      onStateChange: _services.visibility.windowChanged,
+    );
     _watchSignals();
     unawaited(_services.init(widget.options));
   }

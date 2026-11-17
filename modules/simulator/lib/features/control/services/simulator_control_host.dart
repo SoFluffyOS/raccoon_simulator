@@ -27,6 +27,7 @@ final class SimulatorControlHost implements RaccoonControlHost {
     required this.log,
     required this.environment,
     required this.stopHostRun,
+    this.visibility,
     this.runTimeout = const Duration(minutes: 5),
   });
 
@@ -49,6 +50,9 @@ final class SimulatorControlHost implements RaccoonControlHost {
 
   /// How long a run may take to its first frame.
   final Duration runTimeout;
+
+  /// Keeps an app an agent drives resumed, the window shown or not.
+  final WindowVisibility? visibility;
 
   @override
   String get kind => 'simulator';
@@ -255,8 +259,14 @@ final class SimulatorControlApp implements RaccoonControlApp {
 
   bool get _isHostRun => _host.hostRun.appName == name;
 
+  /// Every action goes through it: the app stays resumed while an agent
+  /// drives it.
   @override
-  RunnerClient get client => _session.client;
+  RunnerClient get client {
+    final client = _session.client;
+    _host.visibility?.use(name);
+    return client;
+  }
 
   @override
   DeviceSize get size {

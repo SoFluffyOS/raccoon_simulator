@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:raccoon/raccoon.dart';
@@ -47,6 +48,9 @@ final class FakeRunner {
   final _clients = <Socket>[];
   var connections = 0;
 
+  /// What clients sent the app, as `channel data`.
+  final appMessages = <String>[];
+
   void _accept(Socket socket) {
     connections++;
     if (refuse) {
@@ -68,7 +72,21 @@ final class FakeRunner {
       return;
     }
     _clients.add(socket);
-    socket.listen(null, onError: (Object _) {}, cancelOnError: true);
+    final unframer = MessageUnframer();
+    socket.listen(
+      (chunk) {
+        for (final frame in unframer.add(chunk)) {
+          final message = ClientMessage.fromBuffer(frame);
+          if (!message.hasAppMessage()) continue;
+          appMessages.add(
+            '${message.appMessage.channel} '
+            '${utf8.decode(message.appMessage.data)}',
+          );
+        }
+      },
+      onError: (Object _) {},
+      cancelOnError: true,
+    );
     socket.add(
       MessageFraming.frame(
         RunnerMessage(
