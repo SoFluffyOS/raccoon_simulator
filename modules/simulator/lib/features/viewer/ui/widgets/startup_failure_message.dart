@@ -1,12 +1,17 @@
+import 'dart:async';
+
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:raccoon/raccoon.dart';
 import 'package:raccoon_runtime/raccoon_runtime.dart';
 import 'package:simulator/design/design.dart';
+import 'package:simulator/features/viewer/models/models.dart';
 import 'package:sofluffy_ui/sofluffy_ui.dart';
 
 /// Where the app would be when it stopped before its first frame: what it
-/// died of, the plugin to blame when the report names one, and the plugin
-/// report itself a tap away.
+/// died of, the plugin to blame when the report names one, what to install
+/// for a plugin that did not build, and the plugin report itself a tap
+/// away; the words select and copy.
 class StartupFailureMessage extends StatefulWidget {
   const StartupFailureMessage({
     super.key,
@@ -27,12 +32,14 @@ class StartupFailureMessage extends StatefulWidget {
 
 class _StartupFailureMessageState extends State<StartupFailureMessage> {
   var _showReport = false;
+  var _copied = false;
 
   @override
   Widget build(BuildContext context) {
     final typography = context.fluffyTheme.typography;
     final failure = widget.failure;
     final reports = widget.plugins?.plugins ?? const <PluginReport>[];
+    final install = widget.plugins?.install;
     final what = switch (failure.exception) {
       final exception? => exception,
       null => 'Nothing answered ${failure.channels.join(', ')}.',
@@ -53,67 +60,101 @@ class _StartupFailureMessageState extends State<StartupFailureMessage> {
           constraints: BoxConstraints(maxWidth: Spacing.d440),
           child: Padding(
             padding: EdgeInsets.all(Spacing.d24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  '${widget.name} stopped before its first frame',
-                  style: typography.headline6.copyWith(color: Palette.text),
-                  textAlign: TextAlign.center,
-                ),
-                Spacing.v8,
-                Text(
-                  what,
-                  textAlign: TextAlign.center,
-                  maxLines: 6,
-                  overflow: TextOverflow.ellipsis,
-                  style: typography.base2.copyWith(
-                    fontWeight: FontWeight.normal,
-                    color: Palette.error,
-                  ),
-                ),
-                for (final hint in failure.hints) ...[
-                  Spacing.v8,
-                  Text(
-                    hint,
-                    textAlign: TextAlign.center,
-                    style: typography.base2.copyWith(color: Palette.text),
-                  ),
-                ],
-                Spacing.v8,
-                Text(
-                  why,
-                  textAlign: TextAlign.center,
-                  style: typography.caption2.copyWith(color: Palette.textMuted),
-                ),
-                if (reports.isNotEmpty) ...[
-                  Spacing.v16,
-                  Button(
-                    variant: ButtonVariant.secondary,
-                    label: switch (_showReport) {
-                      true => 'Hide report',
-                      false => 'Plugin report',
-                    },
-                    onPressed: () => setState(() => _showReport = !_showReport),
-                  ),
-                ],
-                if (_showReport)
-                  for (final report in reports) ...[
-                    Spacing.v4,
+            // Selectable, so a hint's command or path copies out.
+            child: DefaultSelectionStyle(
+              selectionColor: Palette.selection,
+              cursorColor: Palette.accent,
+              child: SelectableRegion(
+                selectionControls: emptyTextSelectionControls,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
                     Text(
-                      _line(report),
+                      '${widget.name} stopped before its first frame',
+                      style: typography.headline6.copyWith(color: Palette.text),
+                      textAlign: TextAlign.center,
+                    ),
+                    Spacing.v8,
+                    Text(
+                      what,
+                      textAlign: TextAlign.center,
+                      maxLines: 6,
+                      overflow: TextOverflow.ellipsis,
+                      style: typography.base2.copyWith(
+                        fontWeight: FontWeight.normal,
+                        color: Palette.error,
+                      ),
+                    ),
+                    for (final hint in failure.hints) ...[
+                      Spacing.v8,
+                      Text(
+                        hint,
+                        textAlign: TextAlign.center,
+                        style: typography.base2.copyWith(color: Palette.text),
+                      ),
+                    ],
+                    if (install case final install?) ...[
+                      Spacing.v8,
+                      Text(
+                        'Install what they need to build: $install.',
+                        textAlign: TextAlign.center,
+                        style: typography.base2.copyWith(color: Palette.text),
+                      ),
+                      Spacing.v8,
+                      Button(
+                        variant: ButtonVariant.secondary,
+                        label: switch (_copied) {
+                          true => 'Copied',
+                          false => 'Copy Command',
+                        },
+                        onPressed: () => _copy(install),
+                      ),
+                    ],
+                    Spacing.v8,
+                    Text(
+                      why,
                       textAlign: TextAlign.center,
                       style: typography.caption2.copyWith(
                         color: Palette.textMuted,
                       ),
                     ),
+                    if (reports.isNotEmpty) ...[
+                      Spacing.v16,
+                      Button(
+                        variant: ButtonVariant.secondary,
+                        label: switch (_showReport) {
+                          true => 'Hide report',
+                          false => 'Plugin report',
+                        },
+                        onPressed: () =>
+                            setState(() => _showReport = !_showReport),
+                      ),
+                    ],
+                    if (_showReport)
+                      for (final report in reports) ...[
+                        Spacing.v4,
+                        Text(
+                          _line(report),
+                          textAlign: TextAlign.center,
+                          style: typography.caption2.copyWith(
+                            color: Palette.textMuted,
+                          ),
+                        ),
+                      ],
                   ],
-              ],
+                ),
+              ),
             ),
           ),
         ),
       ),
     );
+  }
+
+  /// Puts [command] on the clipboard, for a terminal.
+  void _copy(String command) {
+    unawaited(Clipboard.setData(ClipboardData(text: command)));
+    setState(() => _copied = true);
   }
 
   /// One plugin of the report, in words.

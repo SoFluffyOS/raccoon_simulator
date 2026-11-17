@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/services.dart' show SystemChannels;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
@@ -94,9 +95,13 @@ void main() {
     ],
     child: FluffyTheme(
       data: SimulatorTheme.data,
-      child: const Directionality(
+      child: Directionality(
         textDirection: TextDirection.ltr,
-        child: ViewerFrame(),
+        // The window's overlay, which WidgetsApp gives the real one: the
+        // startup failure's words select.
+        child: Overlay(
+          initialEntries: [OverlayEntry(builder: (_) => const ViewerFrame())],
+        ),
       ),
     ),
   );
@@ -313,6 +318,117 @@ void main() {
     await tester.tap(find.text('Plugin report'));
     await tester.pump();
     expect(find.text('url_launcher_linux: loaded'), findsOneWidget);
+
+    await tester.runAsync(editorRun.stop);
+  });
+
+  // What the runner reports since raccoon#386 and #392: a window plugin left
+  // out for want of the view, as no implementation with the reason; one that
+  // stopped at CMake for want of a dev package, with the command.
+  const wantsView =
+      "no implementation on Raccoon: it wants the view's GTK window, and "
+      'there is no view yet (#365)';
+  const devPackage =
+      'did not build: needs the development files of json-glib-1.0, as '
+      'flutter run -d linux does: sudo apt install libjson-glib-dev; see '
+      '/tmp/raccoon-plugins/ffmpeg_kit_flutter_new_min/build.log';
+  final diedOfViewAndDevPackage = [
+    for (final channel in [
+      'yaru_window_linux',
+      'plugins.flutter.io/ffmpeg_kit_flutter_new_min',
+    ])
+      logLine(
+        'raccoon_runner: nothing answered $channel (no client); the app sees '
+        'no plugin',
+      ),
+    logLine(
+      '[ERROR:flutter/runtime/dart_vm_initializer.cc(40)] Unhandled '
+      'Exception: MissingPluginException(No implementation found for '
+      'method setTitle on channel yaru_window_linux)',
+    ),
+    RunnerMessage(
+      plugins: Plugins(
+        plugins: [
+          PluginReport(
+            name: 'yaru_window_linux',
+            state: PluginState.PLUGIN_STATE_NO_HOST,
+            detail: wantsView,
+          ),
+          PluginReport(
+            name: 'ffmpeg_kit_flutter_new_min',
+            state: PluginState.PLUGIN_STATE_FAILED,
+            detail: devPackage,
+          ),
+        ],
+      ),
+    ),
+  ];
+
+  testWidgets('a startup failure names the view and the dev package, in '
+      'words that select, with the command to copy', (tester) async {
+    final copied = <String>[];
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'Clipboard.setData') {
+          copied.add((call.arguments as Map)['text'] as String);
+        }
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      ),
+    );
+    late FakeRunner editorRun;
+    await tester.runAsync(() async {
+      editorRun = await FakeRunner.start(p.join(temp.path, 'counter.sock'));
+      sessions.follow([watched(temp.path)]);
+      await until(() => sessions.session('counter') != null);
+      diedOfViewAndDevPackage.forEach(editorRun.send);
+      await until(
+        () => sessions.startupFailure('counter')?.hints.length == 2,
+      );
+    });
+    await tester.pumpWidget(app());
+
+    expect(find.text('yaru_window_linux has $wantsView'), findsOneWidget);
+    expect(
+      find.text('ffmpeg_kit_flutter_new_min did not load: $devPackage'),
+      findsOneWidget,
+    );
+    expect(
+      find.text(
+        'Install what they need to build: sudo apt install '
+        'libjson-glib-dev.',
+      ),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('Plugin report'));
+    await tester.pump();
+    expect(find.text('yaru_window_linux has $wantsView'), findsNWidgets(2));
+    expect(
+      find.text('ffmpeg_kit_flutter_new_min did not load: $devPackage'),
+      findsNWidgets(2),
+    );
+    // The hints, the command and the report are in one selectable region,
+    // not cut.
+    final command = find.textContaining('sudo apt install libjson-glib-dev');
+    expect(command, findsNWidgets(3));
+    for (final text in tester.widgetList<Text>(command)) {
+      expect(text.maxLines, isNull);
+    }
+    expect(
+      find.ancestor(of: command.first, matching: find.byType(SelectableRegion)),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.text('Copy Command'));
+    await tester.pump();
+    expect(copied, ['sudo apt install libjson-glib-dev']);
+    expect(find.text('Copied'), findsOneWidget);
 
     await tester.runAsync(editorRun.stop);
   });

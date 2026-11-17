@@ -20,6 +20,9 @@ abstract final class Palette {
   static const warning = FluffyColors.warning;
   static const error = FluffyColors.error;
 
+  /// Behind selected text: the accent, faint.
+  static const selection = Color(0x3D6CA8FF);
+
   static const colors = ColorData(
     primary: accent,
     secondary: accent,
